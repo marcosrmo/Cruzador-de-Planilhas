@@ -57,7 +57,7 @@ export function FileUpload({ label, description, onFileSelect, accept = ".xlsx, 
 
   return (
     <div className="w-full">
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label className="block text-sm font-medium text-slate-200 mb-2">
         {label}
       </label>
       
@@ -68,7 +68,7 @@ export function FileUpload({ label, description, onFileSelect, accept = ".xlsx, 
           onDrop={handleDrop}
           className={cn(
             "relative border-2 border-dashed rounded-xl p-8 transition-all duration-200 ease-in-out text-center cursor-pointer group hover:border-primary/50 hover:bg-primary/5",
-            isDragging ? "border-primary bg-primary/10" : "border-gray-200 bg-gray-50/50"
+            isDragging ? "border-primary bg-primary/10" : "border-slate-700 bg-slate-800/50"
           )}
         >
           <input
@@ -78,15 +78,15 @@ export function FileUpload({ label, description, onFileSelect, accept = ".xlsx, 
             accept={accept}
           />
           <div className="flex flex-col items-center justify-center space-y-3">
-            <div className="p-3 bg-white rounded-full shadow-sm ring-1 ring-gray-200 group-hover:scale-110 transition-transform duration-200">
+            <div className="p-3 bg-slate-800 rounded-full shadow-sm ring-1 ring-slate-700 group-hover:scale-110 transition-transform duration-200 group-hover:bg-slate-700">
               <Upload className="w-6 h-6 text-primary" />
             </div>
             <div className="space-y-1">
-              <p className="text-sm font-medium text-gray-900">
+              <p className="text-sm font-medium text-slate-200">
                 Clique para selecionar ou arraste o arquivo
               </p>
               {description && (
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-slate-400">
                   {description}
                 </p>
               )}
@@ -94,23 +94,23 @@ export function FileUpload({ label, description, onFileSelect, accept = ".xlsx, 
           </div>
         </div>
       ) : (
-        <div className="relative border rounded-xl p-4 bg-white shadow-sm ring-1 ring-black/5 flex items-center justify-between group">
+        <div className="relative border rounded-xl p-4 bg-slate-800/80 shadow-sm ring-1 ring-white/10 flex items-center justify-between group">
           <div className="flex items-center space-x-3 overflow-hidden">
-            <div className="p-2 bg-green-50 rounded-lg">
-              <FileSpreadsheet className="w-5 h-5 text-green-600" />
+            <div className="p-2 bg-green-500/20 rounded-lg">
+              <FileSpreadsheet className="w-5 h-5 text-green-400" />
             </div>
             <div className="truncate">
-              <p className="text-sm font-medium text-gray-900 truncate">
+              <p className="text-sm font-medium text-slate-200 truncate">
                 {selectedFile.name}
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-slate-400">
                 {(selectedFile.size / 1024).toFixed(1)} KB
               </p>
             </div>
           </div>
           <button
             onClick={removeFile}
-            className="p-1.5 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-md transition-colors"
+            className="p-1.5 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-md transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
