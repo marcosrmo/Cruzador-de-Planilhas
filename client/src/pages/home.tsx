@@ -84,10 +84,10 @@ export default function Home() {
           <div className="inline-block p-3 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 mb-2 shadow-lg shadow-purple-500/20">
             <Smartphone className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl drop-shadow-sm">
-            Cruzador de <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-red-400">Planilhas</span>
+          <h1 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-red-400 sm:text-5xl drop-shadow-sm pb-1">
+            Cruzador de Planilhas
           </h1>
-          <p className="text-lg text-slate-200 max-w-2xl mx-auto font-medium">
+          <p className="text-lg text-red-300 max-w-2xl mx-auto font-medium">
             Ferramenta profissional para automação de busca de dados. Cruze bases de clientes e devedores em segundos.
           </p>
         </div>
@@ -220,9 +220,11 @@ export default function Home() {
           {/* Support Card */}
           <Card className="bg-blue-950/30 border-blue-500/30 backdrop-blur-md shadow-lg shadow-blue-900/10">
             <CardHeader>
-              <CardTitle className="text-blue-100 flex items-center gap-2 text-xl">
+              <CardTitle className="flex items-center gap-2 text-xl">
                 <Smartphone className="w-6 h-6 text-blue-400" />
-                Suporte Técnico
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-red-400">
+                  Suporte Técnico
+                </span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -240,9 +242,11 @@ export default function Home() {
           {/* Services Card */}
           <Card className="bg-purple-950/30 border-purple-500/30 backdrop-blur-md shadow-lg shadow-purple-900/10">
             <CardHeader>
-              <CardTitle className="text-purple-100 flex items-center gap-2 text-xl">
+              <CardTitle className="flex items-center gap-2 text-xl">
                 <Wrench className="w-6 h-6 text-purple-400" />
-                Outros Serviços
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-red-400">
+                  Outros Serviços
+                </span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
