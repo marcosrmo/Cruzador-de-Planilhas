@@ -2,33 +2,33 @@
 @import "tw-animate-css";
 
 @theme inline {
-  --color-background: 210 20% 98%;
-  --color-foreground: 222 47% 11%;
+  --color-background: 222 47% 11%;
+  --color-foreground: 210 40% 98%;
   
-  --color-card: 0 0% 100%;
-  --color-card-foreground: 222 47% 11%;
+  --color-card: 222 47% 13%;
+  --color-card-foreground: 210 40% 98%;
   
-  --color-popover: 0 0% 100%;
-  --color-popover-foreground: 222 47% 11%;
+  --color-popover: 222 47% 11%;
+  --color-popover-foreground: 210 40% 98%;
   
-  --color-primary: 221 83% 53%;
+  --color-primary: 346 84% 61%; /* Red/Pinkish Red */
   --color-primary-foreground: 210 40% 98%;
   
-  --color-secondary: 210 40% 96.1%;
-  --color-secondary-foreground: 222 47% 11.2%;
+  --color-secondary: 217 33% 17%;
+  --color-secondary-foreground: 210 40% 98%;
   
-  --color-muted: 210 40% 96.1%;
-  --color-muted-foreground: 215.4 16.3% 46.9%;
+  --color-muted: 217 33% 17%;
+  --color-muted-foreground: 215 20% 65%;
   
-  --color-accent: 210 40% 96.1%;
-  --color-accent-foreground: 222 47% 11.2%;
+  --color-accent: 262 80% 50%; /* Deep Purple */
+  --color-accent-foreground: 210 40% 98%;
   
-  --color-destructive: 0 84.2% 60.2%;
+  --color-destructive: 0 62.8% 30.6%;
   --color-destructive-foreground: 210 40% 98%;
   
-  --color-border: 214.3 31.8% 91.4%;
-  --color-input: 214.3 31.8% 91.4%;
-  --color-ring: 221 83% 53%;
+  --color-border: 217 33% 20%;
+  --color-input: 217 33% 17%;
+  --color-ring: 346 84% 61%;
   
   --radius: 0.75rem;
   --font-sans: 'Inter', sans-serif;
@@ -39,6 +39,6 @@
     @apply border-border;
   }
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    @apply font-sans antialiased bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-[#0f172a] to-black text-foreground min-h-screen;
   }
 }
