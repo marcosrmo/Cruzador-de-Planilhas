@@ -1,0 +1,147 @@
+🔹 PROMPT DETALHADO – TRANSFORMAR SCRIPT PYTHON EM PROGRAMA WEB
+
+Quero que você atue como um desenvolvedor full stack sênior, especialista em Python, automação com planilhas e aplicações web.
+
+Eu já possuo um script em Python que faz o seguinte:
+
+Lê uma planilha principal (Excel) contendo Nome e Telefone dos clientes
+
+Lê uma segunda planilha (Excel) contendo apenas os nomes dos devedores
+
+Compara as duas planilhas
+
+Gera uma terceira planilha Excel, contendo Nome + Telefone somente dos clientes que aparecem nas duas planilhas (ou seja, quem está devendo)
+
+Agora quero transformar esse script em um programa web funcional, simples e intuitivo.
+
+🔹 OBJETIVO DO SISTEMA WEB
+
+Criar uma aplicação web onde o usuário possa:
+
+Fazer upload da planilha geral de clientes
+
+Fazer upload da planilha de devedores
+
+Clicar em um botão para processar
+
+Baixar automaticamente a planilha final com os telefones dos devedores
+
+🔹 REQUISITOS TÉCNICOS
+
+Backend em Python
+
+Framework web: Flask (ou FastAPI, se julgar melhor)
+
+Manipulação de planilhas com pandas + openpyxl
+
+Frontend simples em HTML + CSS (sem frameworks JS)
+
+Interface clara, amigável e funcional
+
+Código bem organizado e comentado
+
+🔹 FUNCIONALIDADES DETALHADAS
+
+Página única com:
+
+Campo para upload da planilha geral
+
+Campo para upload da planilha de devedores
+
+Botão “Processar Planilhas”
+
+Validação:
+
+Verificar se os arquivos são .xlsx
+
+Verificar se possuem as colunas necessárias (Nome, Telefone)
+
+Processamento:
+
+Normalizar nomes (maiúsculas, remover espaços extras)
+
+Cruzar os dados pelo campo Nome
+
+Manter apenas os registros que aparecem nas duas planilhas
+
+Resultado:
+
+Gerar um novo arquivo Excel
+
+Disponibilizar para download automático
+
+Mensagens de erro claras para o usuário
+
+🔹 ESTRUTURA DO PROJETO
+
+Peço que o projeto seja organizado assim:
+
+/app
+ ├── app.py
+ ├── templates/
+ │   └── index.html
+ ├── static/
+ │   └── style.css
+ ├── uploads/
+ ├── outputs/
+ └── requirements.txt
+
+🔹 FLUXO DO USUÁRIO
+
+Usuário acessa o site
+
+Faz upload das duas planilhas
+
+Clica em Processar
+
+O sistema cruza os dados
+
+O sistema gera a planilha final
+
+Usuário baixa o arquivo
+
+🔹 EXTRAS (SE POSSÍVEL)
+
+Barra de progresso simples
+
+Exibir quantidade de devedores encontrados
+
+Nome do arquivo gerado com data e hora
+
+Possibilidade de rodar localmente (localhost)
+
+🔹 ENTREGA ESPERADA
+
+Quero que você:
+
+Explique rapidamente a arquitetura
+
+Forneça todo o código pronto
+
+Explique como instalar dependências
+
+Explique como rodar o sistema localmente
+
+Explique como adaptar o código se eu quiser mudar os nomes das colunas
+
+🔹 CONTEXTO FINAL
+
+Esse sistema será usado por pessoas sem conhecimento técnico, então priorize:
+
+Simplicidade
+
+Clareza
+
+Robustez
+
+Facilidade de uso
+
+Se quiser, no próximo passo eu posso:
+
+Escrever o código completo pra você
+
+Adaptar o prompt para IA específica (ChatGPT, Claude, Cursor)
+
+Criar versão desktop ou versão online (VPS, hospedagem)
+
+Só me dizer 👍
