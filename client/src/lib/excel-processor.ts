@@ -154,6 +154,7 @@ export async function processFiles(
 
     // 4. Process debtors
     const resultData = [['Nome', 'Telefone']];
+    const seenPhones = new Set<string>();
     let foundCount = 0;
     let missingCount = 0;
 
@@ -166,8 +167,14 @@ export async function processFiles(
         const phone = phoneMap.get(normName);
 
         if (phone) {
-          resultData.push([name, phone]);
-          foundCount++;
+          // Normaliza o telefone para comparação (remove caracteres não numéricos)
+          const normalizedPhone = phone.replace(/\D/g, '');
+          
+          if (!seenPhones.has(normalizedPhone)) {
+            resultData.push([name, phone]);
+            seenPhones.add(normalizedPhone);
+            foundCount++;
+          }
         } else {
           resultData.push([name, '']);
           missingCount++;
