@@ -2,10 +2,26 @@ import * as XLSX from 'xlsx';
 
 // Utility to normalize text (remove accents, lowercase, trim)
 export function normalizeText(text: any): string {
-  if (!text) return '';
-  const str = String(text).trim().toLowerCase();
-  // Remove accents
-  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (!text) return "";
+
+  // 1. Converte para texto e minúsculas
+  let str = String(text).toLowerCase();
+
+  // 2. Remove acentos (ex: á -> a, ç -> c)
+  str = str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  // 3. Remove termos jurídicos comuns que atrapalham a comparação
+  const stopWords = [" ltda", " s.a", " sa ", " me ", " epp ", " me"];
+  stopWords.forEach(word => {
+    str = str.replace(word, "");
+  });
+
+  // 4. Remove caracteres especiais (pontos, traços, parênteses)
+  // Mantém apenas letras e números
+  str = str.replace(/[^a-z0-9\s]/g, "");
+
+  // 5. Remove espaços extras (ex: "Jose   Silva" -> "jose silva")
+  return str.trim().replace(/\s+/g, " ");
 }
 
 // Simple Levenshtein distance for fuzzy matching

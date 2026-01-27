@@ -1,0 +1,115 @@
+Ótimo! Vamos transformar o "esqueleto" que você tem hoje em um produto mais robusto e profissional.
+
+Como você é leigo, vou focar em mudanças que você pode copiar e colar nos arquivos existentes para ver o resultado imediato.
+
+Vamos atacar 3 frentes rápidas:
+
+Identidade Visual: Colocar o Logo/Favicon que criamos.
+
+Inteligência: Melhorar o cruzamento de dados (para achar mais nomes).
+
+Experiência: Mostrar um "Carregando..." enquanto a planilha processa.
+
+1. Aplicando o Logo e Favicon
+Primeiro, vamos fazer o sistema ter "cara" de aplicativo.
+
+Salve a imagem que gerei anteriormente no seu computador.
+
+Se estiver usando Replit ou VSCode, procure a pasta client/public ou apenas public.
+
+Renomeie sua imagem para favicon.ico (para o ícone da aba) e faça o upload para essa pasta.
+
+Se quiser usar como logo na tela, faça upload de uma cópia com nome logo.png.
+
+Onde alterar no código: Abra client/src/pages/home.tsx e procure onde está escrito o título (geralmente <h1>). Adicione a imagem acima dele:
+
+TypeScript
+// Dentro do return do componente Home
+<div className="flex flex-col items-center mb-8">
+  {/* Adicione esta linha: */}
+  <img src="/logo.png" alt="Logo Cruzador" className="w-24 h-24 mb-4 rounded-xl shadow-lg" />
+  
+  <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
+    Cruzador de Planilhas
+  </h1>
+</div>
+2. Melhorando o "Cérebro" (Algoritmo)
+O segredo desse app é a função normalizeText. Se ela for boa, o app acha mais pessoas. Vamos melhorá-la para ignorar coisas como "LTDA", "ME", pontos e traços.
+
+Vá para o arquivo: client/src/lib/excel-processor.ts Substitua a função normalizeText atual por esta versão "Turbinada":
+
+TypeScript
+export function normalizeText(text: any): string {
+  if (!text) return "";
+  
+  // 1. Converte para texto e minúsculas
+  let str = String(text).toLowerCase();
+
+  // 2. Remove acentos (ex: á -> a, ç -> c)
+  str = str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  // 3. Remove termos jurídicos comuns que atrapalham a comparação
+  const stopWords = [" ltda", " s.a", " sa ", " me ", " epp ", " me"];
+  stopWords.forEach(word => {
+    str = str.replace(word, "");
+  });
+
+  // 4. Remove caracteres especiais (pontos, traços, parênteses)
+  // Mantém apenas letras e números
+  str = str.replace(/[^a-z0-9\s]/g, "");
+
+  // 5. Remove espaços extras (ex: "Jose   Silva" -> "jose silva")
+  return str.trim().replace(/\s+/g, " ");
+}
+Por que isso é melhor? Se na planilha A estiver "João da Silva LTDA." e na B estiver "Joao da Silva", o sistema agora vai entender que são a mesma pessoa.
+
+3. Melhoria Visual (Feedback de Carregamento)
+É muito ruim clicar em "Processar" e não saber se travou. Vamos mudar o botão para avisar que está trabalhando.
+
+Vá para o arquivo: client/src/pages/home.tsx
+
+Você precisa localizar onde o botão de processar é criado. Geralmente tem um onClick={handleProcess}.
+
+Passo A: Crie um estado de carregamento Logo no começo da função Home, onde tem os useState, adicione:
+
+TypeScript
+const [isProcessing, setIsProcessing] = useState(false);
+Passo B: Atualize a função que processa Encontre a função que chama o processFiles (provavelmente onDownload ou algo assim) e "envelope" ela com o estado:
+
+TypeScript
+const handleProcess = async () => {
+  if (!clientsFile || !debtorsFile) return;
+  
+  setIsProcessing(true); // <--- Liga o aviso
+  
+  try {
+    // Aqui está seu código antigo que chama o processFiles...
+    const data = await processFiles(clientsFile, debtorsFile);
+    
+    // Código de download...
+    const url = window.URL.createObjectURL(new Blob([data]));
+    // ... resto do código de download
+    
+    toast({ title: "Sucesso!", description: "Planilha gerada." });
+  } catch (error) {
+    toast({ title: "Erro", description: "Falha ao processar.", variant: "destructive" });
+  } finally {
+    setIsProcessing(false); // <--- Desliga o aviso, mesmo se der erro
+  }
+};
+Passo C: Atualize o Botão Mude o botão para ele ficar desabilitado e mudar o texto enquanto processa:
+
+TypeScript
+<Button 
+  onClick={handleProcess} 
+  disabled={!clientsFile || !debtorsFile || isProcessing} // Desabilita se estiver processando
+  className="w-full text-lg py-6"
+>
+  {isProcessing ? (
+    <>
+      <span className="animate-spin mr-2">⏳</span> Processando...
+    </>
+  ) : (
+    "🔍 Cruzar Planilhas e Baixar"
+  )}
+</Button>
