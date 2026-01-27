@@ -5,6 +5,7 @@ import { processFiles } from "@/lib/excel-processor";
 import { Download, Loader2, CheckCircle, Smartphone, Instagram, Wrench } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import logoImg from "@/assets/logo.png";
 
 export default function Home() {
   const [clientsFile, setClientsFile] = useState<File | null>(null);
@@ -81,8 +82,8 @@ export default function Home() {
         
         {/* Header */}
         <div className="text-center space-y-3">
-          <div className="inline-block p-3 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 mb-2 shadow-lg shadow-purple-500/20">
-            <Smartphone className="w-8 h-8 text-white" />
+          <div className="inline-block mb-2">
+            <img src={logoImg} alt="Logo" className="w-20 h-20 rounded-2xl shadow-lg shadow-purple-500/20 object-cover" />
           </div>
           <h1 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-red-400 sm:text-5xl drop-shadow-sm pb-1">
             Cruzador de Planilhas
