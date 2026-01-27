@@ -41,7 +41,7 @@ export function FileUpload({ label, description, onFileSelect, accept = ".xlsx, 
   }, []);
 
   const handleFile = (file: File) => {
-    if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+    if (file && (file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls') || file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || file.type === 'application/vnd.ms-excel')) {
       setSelectedFile(file);
       onFileSelect(file);
     } else {
