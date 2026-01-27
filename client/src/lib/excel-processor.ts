@@ -153,7 +153,7 @@ export async function processFiles(
     }
 
     // 4. Process debtors
-    const resultData = [['Nome Original', 'Telefone Encontrado', 'Status']];
+    const resultData = [['Nome', 'Telefone']];
     let foundCount = 0;
     let missingCount = 0;
 
@@ -166,10 +166,10 @@ export async function processFiles(
         const phone = phoneMap.get(normName);
 
         if (phone) {
-          resultData.push([name, phone, 'Encontrado']);
+          resultData.push([name, phone]);
           foundCount++;
         } else {
-          resultData.push([name, '', 'Não encontrado']);
+          resultData.push([name, '']);
           missingCount++;
         }
       }
