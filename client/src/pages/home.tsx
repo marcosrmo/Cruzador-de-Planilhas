@@ -110,61 +110,90 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Main Card */}
-        <Card className="border border-white/10 shadow-2xl bg-slate-900/80 backdrop-blur-xl ring-1 ring-white/5">
-          <CardHeader className="border-b border-white/5 pb-6">
-            <CardTitle className="text-white text-2xl">Upload de Arquivos</CardTitle>
-            <CardDescription className="text-slate-300 text-base">
-              Selecione as planilhas para iniciar o processamento inteligente.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-8 pt-6">
-            <div className="grid md:grid-cols-2 gap-8">
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-blue-300 font-bold text-lg">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/40 text-sm">1</div>
-                  <span>Base Completa</span>
-                </div>
-                <FileUpload 
-                  label="Planilha Geral" 
-                  description="Arquivo contendo Nome e Telefone de todos os clientes."
-                  onFileSelect={setClientsFile}
-                />
+        {/* Sections Selection */}
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Extraction Section (Only Debtors) */}
+          <Card className={`border ${!clientsFile ? 'border-amber-500/50 shadow-amber-900/20' : 'border-white/10'} shadow-2xl bg-slate-900/80 backdrop-blur-xl ring-1 ring-white/5 transition-all duration-300`}>
+            <CardHeader className="border-b border-white/5 pb-6">
+              <div className="flex items-center gap-2 text-amber-400 font-bold text-lg mb-1">
+                <Wrench className="w-5 h-5" />
+                <span>1. Extrair Devedores</span>
               </div>
+              <CardTitle className="text-white text-xl">Filtragem de Lista</CardTitle>
+              <CardDescription className="text-slate-300 text-sm">
+                Apenas filtra quem já pagou. Não adiciona telefones.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-4">
+              <FileUpload 
+                label="Planilha de Nomes" 
+                description="Arquivo com os nomes dos devedores."
+                onFileSelect={setDebtorsFile}
+              />
+              {!result && !clientsFile && (
+                <Button 
+                  size="sm" 
+                  onClick={handleProcess} 
+                  disabled={isProcessing || !debtorsFile}
+                  className="w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white border-0 shadow-lg shadow-amber-900/30 font-bold h-10 transition-all duration-300 hover:scale-[1.02] text-base"
+                >
+                  {isProcessing ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Extraindo...</>
+                  ) : (
+                    <>Extrair devedores</>
+                  )}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
 
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-red-300 font-bold text-lg">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-red-500/20 border border-red-500/40 text-sm">2</div>
-                  <span>Lista de Devedores</span>
-                </div>
-                <div className="relative">
-                  <FileUpload 
-                    label="Planilha de Nomes" 
-                    description="Arquivo com os Nomes. É OBRIGATÓRIO ter uma coluna 'Telefone'."
-                    onFileSelect={setDebtorsFile}
-                  />
-                  <div className="mt-3 text-sm text-amber-200 bg-amber-950/40 p-3 rounded-lg border border-amber-500/30 flex items-start gap-3">
-                    <span className="mt-0.5 text-xl leading-none">⚠️</span>
-                    <p className="font-medium">Atenção: Crie uma coluna chamada <strong className="text-amber-100 underline decoration-amber-500/50">Telefone</strong> nesta planilha, mesmo que não tenha números nela.</p>
-                  </div>
-                </div>
+          {/* Crossing Section (Base + Debtors) */}
+          <Card className={`border ${clientsFile ? 'border-red-500/50 shadow-red-900/20' : 'border-white/10'} shadow-2xl bg-slate-900/80 backdrop-blur-xl ring-1 ring-white/5 transition-all duration-300`}>
+            <CardHeader className="border-b border-white/5 pb-6">
+              <div className="flex items-center gap-2 text-red-400 font-bold text-lg mb-1">
+                <Smartphone className="w-5 h-5" />
+                <span>2. Cruzar Planilhas</span>
               </div>
-            </div>
-
-            {/* Processing State */}
-            {isProcessing && (
-              <div className="flex flex-col items-center justify-center py-8 space-y-4 animate-in fade-in zoom-in duration-300">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full"></div>
-                  <Loader2 className="h-12 w-12 animate-spin text-primary relative z-10" />
+              <CardTitle className="text-white text-xl">Adicionar Telefones</CardTitle>
+              <CardDescription className="text-slate-300 text-sm">
+                Cruza a base completa com os devedores para achar telefones.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-4">
+              <FileUpload 
+                label="Base Completa" 
+                description="Arquivo com Nome e Telefone de todos os clientes."
+                onFileSelect={setClientsFile}
+              />
+              {clientsFile && (
+                <div className="mt-3 text-sm text-amber-200 bg-amber-950/40 p-3 rounded-lg border border-amber-500/30 flex items-start gap-3">
+                  <span className="mt-0.5 text-xl leading-none">⚠️</span>
+                  <p className="font-medium italic">Selecione a Lista de Devedores na seção ao lado para cruzar.</p>
                 </div>
-                <p className="text-white font-semibold text-lg">Processando dados e cruzando informações...</p>
-              </div>
-            )}
+              )}
+              {clientsFile && !result && (
+                <Button 
+                  size="lg" 
+                  onClick={handleProcess} 
+                  disabled={isProcessing || !debtorsFile || !clientsFile}
+                  className="w-full bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white border-0 shadow-xl shadow-red-900/30 font-bold text-lg h-12 transition-all duration-300 hover:scale-[1.02]"
+                >
+                  {isProcessing ? (
+                    <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Processando...</>
+                  ) : (
+                    <>Processar e Adicionar Telefones</>
+                  )}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
-            {/* Results Area */}
-            {result && !isProcessing && (
-              <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-6 space-y-4 animate-in slide-in-from-bottom-4 duration-500">
+        {/* Results Area (Shared) */}
+        {result && !isProcessing && (
+          <Card className="border border-green-500/30 shadow-2xl bg-slate-900/90 backdrop-blur-xl ring-1 ring-white/5">
+            <CardContent className="pt-6 space-y-6">
+              <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-6 space-y-4">
                 <div className="flex items-start space-x-3">
                   <div className="p-2 bg-green-500/20 rounded-full border border-green-500/30">
                     <CheckCircle className="h-6 w-6 text-green-400" />
@@ -172,7 +201,7 @@ export default function Home() {
                   <div className="space-y-1">
                     <h3 className="font-bold text-lg text-green-300">Processamento Concluído!</h3>
                     <p className="text-green-100 text-sm font-medium">
-                      O arquivo final foi gerado e está pronto para download.
+                      {clientsFile ? 'Os telefones foram cruzados e o arquivo está pronto.' : 'A lista de devedores foi filtrada e extraída com sucesso.'}
                     </p>
                   </div>
                 </div>
@@ -213,46 +242,16 @@ export default function Home() {
                   )}
                 </div>
               </div>
-            )}
 
-          </CardContent>
-          <CardFooter className="flex justify-end pt-2 pb-6 border-t border-white/5 mt-6">
-            {!result ? (
-              <div className="w-full flex justify-end">
-                {clientsFile ? (
-                  <Button 
-                    size="lg" 
-                    onClick={handleProcess} 
-                    disabled={isProcessing || !debtorsFile}
-                    className="w-full sm:w-auto bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white border-0 shadow-xl shadow-red-900/30 font-bold text-lg h-12 transition-all duration-300 hover:scale-[1.02]"
-                  >
-                    {isProcessing ? (
-                      <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Processando...</>
-                    ) : (
-                      <>Processar Planilhas</>
-                    )}
-                  </Button>
-                ) : (
-                  <Button 
-                    size="sm" 
-                    onClick={handleProcess} 
-                    disabled={isProcessing || !debtorsFile}
-                    className="w-full sm:w-auto bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white border-0 shadow-lg shadow-amber-900/30 font-bold h-10 transition-all duration-300 hover:scale-[1.02] text-base px-6"
-                  >
-                    {isProcessing ? (
-                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Extraindo...</>
-                    ) : (
-                      <>Extrair devedores</>
-                    )}
-                  </Button>
-                )}
-              </div>
-            ) : (
               <div className="flex flex-col w-full gap-3">
                 <div className="flex w-full gap-3">
                   <Button 
                     variant="outline" 
-                    onClick={() => setResult(null)}
+                    onClick={() => {
+                      setResult(null);
+                      setClientsFile(null);
+                      setDebtorsFile(null);
+                    }}
                     className="flex-1 border-white/20 bg-white/5 text-white hover:bg-white/10 h-12 font-medium"
                   >
                     Reiniciar
@@ -273,13 +272,14 @@ export default function Home() {
                     className="w-full bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-900 border-0 shadow-xl shadow-amber-900/30 h-12 font-bold text-lg transition-all duration-300 hover:scale-[1.01]"
                   >
                     <Download className="mr-2 h-5 w-5" />
-                    Baixar Relatório com Valor e Data
+                    Baixar Relatório Completo
                   </Button>
                 )}
               </div>
-            )}
-          </CardFooter>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
+
 
         {/* Support & Services Section */}
         <div className="grid md:grid-cols-2 gap-6 mt-12">
