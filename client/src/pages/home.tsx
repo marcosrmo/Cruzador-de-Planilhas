@@ -110,25 +110,27 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Sections Selection */}
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Extraction Section (Only Debtors) */}
-          <Card className={`border ${!clientsFile ? 'border-amber-500/50 shadow-amber-900/20' : 'border-white/10'} shadow-2xl bg-slate-900/80 backdrop-blur-xl ring-1 ring-white/5 transition-all duration-300`}>
+        <div className="space-y-10">
+          {/* Section 1: Extraction (Above) */}
+          <Card className={`border border-amber-500/50 shadow-2xl shadow-amber-900/20 bg-slate-900/80 backdrop-blur-xl ring-1 ring-white/5 transition-all duration-300`}>
             <CardHeader className="border-b border-white/5 pb-6">
               <div className="flex items-center gap-2 text-amber-400 font-bold text-lg mb-1">
                 <Wrench className="w-5 h-5" />
-                <span>1. Extrair Devedores</span>
+                <span>EXTRAIR DEVEDORES</span>
               </div>
-              <CardTitle className="text-white text-xl">Filtragem de Lista</CardTitle>
+              <CardTitle className="text-white text-xl">Filtragem e Extração</CardTitle>
               <CardDescription className="text-slate-300 text-sm">
-                Apenas filtra quem já pagou. Não adiciona telefones.
+                Esta seção apenas filtra quem já pagou e extrai os nomes. Não requer a base completa.
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6 space-y-4">
               <FileUpload 
-                label="Planilha de Nomes" 
-                description="Arquivo com os nomes dos devedores."
-                onFileSelect={setDebtorsFile}
+                label="Planilha de Devedores (Somente para Extração)" 
+                description="Arquivo com os nomes para filtrar baixa/pagamento."
+                onFileSelect={(file) => {
+                  setDebtorsFile(file);
+                  setClientsFile(null); // Ensure no client file is used in this mode
+                }}
               />
               {!result && !clientsFile && (
                 <Button 
@@ -147,31 +149,52 @@ export default function Home() {
             </CardContent>
           </Card>
 
-          {/* Crossing Section (Base + Debtors) */}
-          <Card className={`border ${clientsFile ? 'border-red-500/50 shadow-red-900/20' : 'border-white/10'} shadow-2xl bg-slate-900/80 backdrop-blur-xl ring-1 ring-white/5 transition-all duration-300`}>
+          {/* Section 2: Crossing (Below - Original Layout) */}
+          <Card className={`border border-white/10 shadow-2xl bg-slate-900/80 backdrop-blur-xl ring-1 ring-white/5 transition-all duration-300`}>
             <CardHeader className="border-b border-white/5 pb-6">
               <div className="flex items-center gap-2 text-red-400 font-bold text-lg mb-1">
                 <Smartphone className="w-5 h-5" />
-                <span>2. Cruzar Planilhas</span>
+                <span>CRUZAR PLANILHAS E ADICIONAR TELEFONES</span>
               </div>
-              <CardTitle className="text-white text-xl">Adicionar Telefones</CardTitle>
+              <CardTitle className="text-white text-xl">Upload de Bases</CardTitle>
               <CardDescription className="text-slate-300 text-sm">
-                Cruza a base completa com os devedores para achar telefones.
+                Selecione as duas planilhas para localizar os telefones na base completa.
               </CardDescription>
             </CardHeader>
-            <CardContent className="pt-6 space-y-4">
-              <FileUpload 
-                label="Base Completa" 
-                description="Arquivo com Nome e Telefone de todos os clientes."
-                onFileSelect={setClientsFile}
-              />
-              {clientsFile && (
-                <div className="mt-3 text-sm text-amber-200 bg-amber-950/40 p-3 rounded-lg border border-amber-500/30 flex items-start gap-3">
-                  <span className="mt-0.5 text-xl leading-none">⚠️</span>
-                  <p className="font-medium italic">Selecione a Lista de Devedores na seção ao lado para cruzar.</p>
+            <CardContent className="pt-6 space-y-8">
+              <div className="grid md:grid-cols-2 gap-8">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-blue-300 font-bold text-lg">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/40 text-sm">1</div>
+                    <span>Base Completa</span>
+                  </div>
+                  <FileUpload 
+                    label="Planilha Geral" 
+                    description="Arquivo contendo Nome e Telefone de todos os clientes."
+                    onFileSelect={setClientsFile}
+                  />
                 </div>
-              )}
-              {clientsFile && !result && (
+
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-red-300 font-bold text-lg">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-red-500/20 border border-red-500/40 text-sm">2</div>
+                    <span>Lista de Devedores</span>
+                  </div>
+                  <div className="relative">
+                    <FileUpload 
+                      label="Planilha de Nomes" 
+                      description="Arquivo com os Nomes."
+                      onFileSelect={setDebtorsFile}
+                    />
+                    <div className="mt-3 text-sm text-amber-200 bg-amber-950/40 p-3 rounded-lg border border-amber-500/30 flex items-start gap-3">
+                      <span className="mt-0.5 text-xl leading-none">⚠️</span>
+                      <p className="font-medium">Obrigatório ter coluna <strong className="text-amber-100 underline decoration-amber-500/50">Telefone</strong>.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {!result && clientsFile && (
                 <Button 
                   size="lg" 
                   onClick={handleProcess} 
