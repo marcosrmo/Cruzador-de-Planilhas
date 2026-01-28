@@ -21,11 +21,11 @@ export default function Home() {
   const { toast } = useToast();
 
   const handleProcess = async () => {
-    if (!clientsFile || !debtorsFile) {
+    if (!debtorsFile) {
       toast({
         variant: "destructive",
-        title: "Arquivos faltando",
-        description: "Por favor, selecione ambas as planilhas antes de processar.",
+        title: "Arquivo de devedores faltando",
+        description: "Por favor, selecione a planilha de devedores antes de processar.",
       });
       return;
     }
@@ -47,10 +47,18 @@ export default function Home() {
           fileName: response.fileName,
           detailedFileName: response.detailedFileName
         });
-        toast({
-          title: "Processamento concluído!",
-          description: `Encontrados ${response.stats.found} telefones de ${response.stats.total} devedores.`,
-        });
+        
+        if (clientsFile) {
+          toast({
+            title: "Processamento concluído!",
+            description: `Encontrados ${response.stats.found} telefones de ${response.stats.total} devedores.`,
+          });
+        } else {
+          toast({
+            title: "Filtragem concluída!",
+            description: `A lista foi filtrada removendo os registros com baixa ou pagamento.`,
+          });
+        }
       } else {
         toast({
           variant: "destructive",
@@ -196,18 +204,35 @@ export default function Home() {
           </CardContent>
           <CardFooter className="flex justify-end pt-2 pb-6 border-t border-white/5 mt-6">
             {!result ? (
-              <Button 
-                size="lg" 
-                onClick={handleProcess} 
-                disabled={isProcessing || !clientsFile || !debtorsFile}
-                className="w-full sm:w-auto bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white border-0 shadow-xl shadow-red-900/30 font-bold text-lg h-12 transition-all duration-300 hover:scale-[1.02]"
-              >
-                {isProcessing ? (
-                  <>Processando...</>
+              <div className="w-full flex justify-end">
+                {clientsFile ? (
+                  <Button 
+                    size="lg" 
+                    onClick={handleProcess} 
+                    disabled={isProcessing || !debtorsFile}
+                    className="w-full sm:w-auto bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white border-0 shadow-xl shadow-red-900/30 font-bold text-lg h-12 transition-all duration-300 hover:scale-[1.02]"
+                  >
+                    {isProcessing ? (
+                      <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Processando...</>
+                    ) : (
+                      <>Processar Planilhas</>
+                    )}
+                  </Button>
                 ) : (
-                  <>Processar Planilhas</>
+                  <Button 
+                    size="sm" 
+                    onClick={handleProcess} 
+                    disabled={isProcessing || !debtorsFile}
+                    className="w-full sm:w-auto bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white border-0 shadow-lg shadow-amber-900/30 font-bold h-10 transition-all duration-300 hover:scale-[1.02] text-base px-6"
+                  >
+                    {isProcessing ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Filtrando...</>
+                    ) : (
+                      <>Remover devedores</>
+                    )}
+                  </Button>
                 )}
-              </Button>
+              </div>
             ) : (
               <div className="flex flex-col w-full gap-3">
                 <div className="flex w-full gap-3">

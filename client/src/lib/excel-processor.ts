@@ -138,7 +138,7 @@ function formatDate(value: any): string {
 }
 
 export async function processFiles(
-  clientsFile: File, 
+  clientsFile: File | null, 
   debtorsFile: File
 ): Promise<ProcessResult> {
   try {
@@ -151,32 +151,20 @@ export async function processFiles(
       return XLSX.utils.sheet_to_json(worksheet, { header: 1 }); // Read as array of arrays
     };
 
-    const clientsDataRaw = await readExcel(clientsFile) as any[][];
     const debtorsDataRaw = await readExcel(debtorsFile) as any[][];
+    const clientsDataRaw = clientsFile ? await readExcel(clientsFile) as any[][] : null;
 
-    if (clientsDataRaw.length < 2 || debtorsDataRaw.length < 2) {
-      return { success: false, message: "Uma das planilhas parece estar vazia." };
+    if (debtorsDataRaw.length < 2) {
+      return { success: false, message: "A planilha de devedores parece estar vazia." };
     }
 
     // 2. Identify columns
-    const clientsHeader = clientsDataRaw[0] as string[];
     const debtorsHeader = debtorsDataRaw[0] as string[];
-
-    const colNameClients = findSimilarColumn(clientsHeader, 'nome');
-    const colPhoneClients = findSimilarColumn(clientsHeader, 'telefone');
-    
     const colNameDebtors = findSimilarColumn(debtorsHeader, 'nome');
     const colLowerDate = findSimilarColumn(debtorsHeader, 'data de baixa');
     const colPaymentDate = findSimilarColumn(debtorsHeader, 'data de pagamento');
     const colValue = findSimilarColumn(debtorsHeader, 'valor');
     const colDueDate = findSimilarColumn(debtorsHeader, 'data de vencimento');
-
-    if (!colNameClients || !colPhoneClients) {
-      return { 
-        success: false, 
-        message: `Não foi possível encontrar as colunas 'Nome' ou 'Telefone' na planilha geral. Colunas encontradas: ${clientsHeader.join(', ')}` 
-      };
-    }
 
     if (!colNameDebtors) {
       return { 
@@ -185,28 +173,31 @@ export async function processFiles(
       };
     }
 
-    // 3. Index data
-    const idxNameClients = clientsHeader.indexOf(colNameClients);
-    const idxPhoneClients = clientsHeader.indexOf(colPhoneClients);
     const idxNameDebtors = debtorsHeader.indexOf(colNameDebtors);
     const idxLowerDate = colLowerDate ? debtorsHeader.indexOf(colLowerDate) : -1;
     const idxPaymentDate = colPaymentDate ? debtorsHeader.indexOf(colPaymentDate) : -1;
     const idxValue = colValue ? debtorsHeader.indexOf(colValue) : -1;
     const idxDueDate = colDueDate ? debtorsHeader.indexOf(colDueDate) : -1;
 
-    // Map: Normalized Name -> Phone
+    // 3. Index Base data if available
     const phoneMap = new Map<string, string>();
+    if (clientsDataRaw && clientsDataRaw.length >= 2) {
+      const clientsHeader = clientsDataRaw[0] as string[];
+      const colNameClients = findSimilarColumn(clientsHeader, 'nome');
+      const colPhoneClients = findSimilarColumn(clientsHeader, 'telefone');
 
-    // Skip header (start at 1)
-    for (let i = 1; i < clientsDataRaw.length; i++) {
-      const row = clientsDataRaw[i];
-      const name = row[idxNameClients];
-      const phone = row[idxPhoneClients];
+      if (colNameClients && colPhoneClients) {
+        const idxNameClients = clientsHeader.indexOf(colNameClients);
+        const idxPhoneClients = clientsHeader.indexOf(colPhoneClients);
 
-      if (name) {
-        const normName = normalizeText(name);
-        if (phone) {
-            phoneMap.set(normName, String(phone));
+        for (let i = 1; i < clientsDataRaw.length; i++) {
+          const row = clientsDataRaw[i];
+          const name = row[idxNameClients];
+          const phone = row[idxPhoneClients];
+          if (name) {
+            const normName = normalizeText(name);
+            if (phone) phoneMap.set(normName, String(phone));
+          }
         }
       }
     }
