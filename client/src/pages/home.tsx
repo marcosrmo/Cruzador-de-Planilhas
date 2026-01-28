@@ -120,7 +120,7 @@ export default function Home() {
               </div>
               <CardTitle className="text-white text-xl">Filtragem e Extração</CardTitle>
               <CardDescription className="text-slate-300 text-sm">
-                Esta seção apenas filtra quem já pagou e extrai os nomes. Não requer a base completa.
+                Esta seção apenas filtra quem já pagou e extrai os devedores e os gera em uma nova planilha. Não requer a base completa.
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6 space-y-4">
