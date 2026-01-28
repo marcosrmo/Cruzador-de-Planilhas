@@ -213,7 +213,7 @@ export async function processFiles(
     // 4. Process debtors
     const resultData = [['Nome', 'Telefone']];
     const detailedData = [['Nome', 'Telefone', 'Valor', 'Data de Vencimento']];
-    const seenPhones = new Set<string>();
+    const seenEntries = new Set<string>(); // Control duplicates based on Phone + Due Date
     let foundCount = 0;
     let missingCount = 0;
 
@@ -238,11 +238,12 @@ export async function processFiles(
         if (phone) {
           // Normaliza o telefone para comparação
           const normalizedPhone = phone.replace(/\D/g, '');
+          const entryKey = `${normalizedPhone}|${dueDate}`;
           
-          if (!seenPhones.has(normalizedPhone)) {
+          if (!seenEntries.has(entryKey)) {
             resultData.push([name, phone]);
             detailedData.push([name, phone, value, dueDate]);
-            seenPhones.add(normalizedPhone);
+            seenEntries.add(entryKey);
             foundCount++;
           }
         } else {
