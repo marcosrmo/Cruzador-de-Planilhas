@@ -14,7 +14,7 @@ export default function Home() {
   const [result, setResult] = useState<{
     data: Uint8Array;
     detailedData?: Uint8Array;
-    stats: { total: number; found: number; missing: number };
+    stats: { total: number; found: number; foundDetailed?: number; missing: number };
     fileName: string;
     detailedFileName?: string;
   } | null>(null);
@@ -169,7 +169,7 @@ export default function Home() {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-3 gap-4 pt-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
                   <div className="bg-slate-800/80 p-4 rounded-lg border border-white/10 text-center shadow-lg">
                     <div className="text-3xl font-bold text-white">{result.stats.total}</div>
                     <div className="text-xs text-slate-300 uppercase font-bold tracking-wider mt-1">Total de Linhas</div>
@@ -177,12 +177,17 @@ export default function Home() {
                   <div className="bg-slate-800/80 p-4 rounded-lg border border-green-500/30 text-center relative overflow-hidden shadow-lg shadow-green-900/10">
                     <div className="absolute inset-0 bg-green-500/5"></div>
                     <div className="text-3xl font-bold text-green-400 relative">{result.stats.found}</div>
-                    <div className="text-xs text-green-200 uppercase font-bold tracking-wider mt-1 relative">Encontrados</div>
+                    <div className="text-xs text-green-200 uppercase font-bold tracking-wider mt-1 relative">Encontrados Simples</div>
+                  </div>
+                  <div className="bg-slate-800/80 p-4 rounded-lg border border-amber-500/30 text-center relative overflow-hidden shadow-lg shadow-amber-900/10">
+                    <div className="absolute inset-0 bg-amber-500/5"></div>
+                    <div className="text-3xl font-bold text-amber-400 relative">{result.stats.foundDetailed || 0}</div>
+                    <div className="text-xs text-amber-200 uppercase font-bold tracking-wider mt-1 relative">Encontrados Detalhado</div>
                   </div>
                   <div className="bg-slate-800/80 p-4 rounded-lg border border-red-500/30 text-center relative overflow-hidden shadow-lg shadow-red-900/10">
                     <div className="absolute inset-0 bg-red-500/5"></div>
                     <div className="text-3xl font-bold text-red-400 relative">{result.stats.missing}</div>
-                    <div className="text-xs text-red-200 uppercase font-bold tracking-wider mt-1 relative">Pendentes</div>
+                    <div className="text-xs text-red-200 uppercase font-bold tracking-wider mt-1 relative">Não Encontrados</div>
                   </div>
                 </div>
               </div>

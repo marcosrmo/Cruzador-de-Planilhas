@@ -97,6 +97,7 @@ export interface ProcessResult {
   stats?: {
     total: number;
     found: number;
+    foundDetailed: number; // New field for detailed report count
     missing: number;
   };
   fileName?: string;
@@ -216,6 +217,7 @@ export async function processFiles(
     const seenPhonesSimple = new Set<string>(); // Para o relatório simples (apenas Telefone)
     const seenEntriesDetailed = new Set<string>(); // Para o relatório completo (Telefone + Data)
     let foundCount = 0;
+    let foundDetailedCount = 0;
     let missingCount = 0;
 
     for (let i = 1; i < debtorsDataRaw.length; i++) {
@@ -241,23 +243,19 @@ export async function processFiles(
           const normalizedPhone = phone.replace(/\D/g, '');
           const entryKeyDetailed = `${normalizedPhone}|${dueDate}`;
           
-          let addedToAny = false;
-
           // Lógica para Relatório Simples: Apenas um por telefone
           if (!seenPhonesSimple.has(normalizedPhone)) {
             resultData.push([name, phone]);
             seenPhonesSimple.add(normalizedPhone);
-            addedToAny = true;
+            foundCount++;
           }
 
           // Lógica para Relatório Completo: Repete se a data for diferente
           if (!seenEntriesDetailed.has(entryKeyDetailed)) {
             detailedData.push([name, phone, value, dueDate]);
             seenEntriesDetailed.add(entryKeyDetailed);
-            addedToAny = true;
+            foundDetailedCount++;
           }
-
-          if (addedToAny) foundCount++;
         } else {
           resultData.push([name, '']);
           detailedData.push([name, '', value, dueDate]);
@@ -285,6 +283,7 @@ export async function processFiles(
       stats: {
         total: foundCount + missingCount,
         found: foundCount,
+        foundDetailed: foundDetailedCount,
         missing: missingCount
       },
       fileName: `resultado_simples_${dateStr}.xlsx`,
