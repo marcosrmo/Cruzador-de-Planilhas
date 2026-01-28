@@ -145,8 +145,9 @@ export default function Home() {
           </p>
         </div>
 
+        <div className="space-y-10">
           {/* Section 1: Extraction (Above) */}
-          <Card className={`border border-amber-500/50 shadow-2xl shadow-amber-900/20 bg-slate-900/80 backdrop-blur-xl ring-1 ring-white/5 transition-all duration-300`}>
+          <Card className="border border-amber-500/50 shadow-2xl shadow-amber-900/20 bg-slate-900/80 backdrop-blur-xl ring-1 ring-white/5 transition-all duration-300">
             <CardHeader className="border-b border-white/5 pb-6">
               <div className="flex items-center gap-2 text-amber-400 font-bold text-lg mb-1">
                 <Wrench className="w-5 h-5" />
@@ -210,14 +211,14 @@ export default function Home() {
                   disabled={isProcessingExtraction || !debtorsFile}
                   className="w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white border-0 shadow-lg shadow-amber-900/30 font-bold h-10 transition-all duration-300 hover:scale-[1.02] text-base"
                 >
-                  <>Extrair devedores</>
+                  Extrair devedores
                 </Button>
               )}
             </CardContent>
           </Card>
 
           {/* Section 2: Crossing (Below - Original Layout) */}
-          <Card className={`border border-white/10 shadow-2xl bg-slate-900/80 backdrop-blur-xl ring-1 ring-white/5 transition-all duration-300`}>
+          <Card className="border border-white/10 shadow-2xl bg-slate-900/80 backdrop-blur-xl ring-1 ring-white/5 transition-all duration-300">
             <CardHeader className="border-b border-white/5 pb-6">
               <div className="flex items-center gap-2 text-red-400 font-bold text-lg mb-1">
                 <Smartphone className="w-5 h-5" />
@@ -316,16 +317,12 @@ export default function Home() {
                   disabled={isProcessingCrossing || !debtorsFile || !clientsFile}
                   className="w-full bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white border-0 shadow-xl shadow-red-900/30 font-bold text-lg h-12 transition-all duration-300 hover:scale-[1.02]"
                 >
-                  <>Processar e Adicionar Telefones</>
+                  Processar e Adicionar Telefones
                 </Button>
               )}
             </CardContent>
           </Card>
         </div>
-
-        {/* Removed shared results area as it is now integrated into each section */}
-
-
 
         {/* Support & Services Section */}
         <div className="grid md:grid-cols-2 gap-6 mt-12">
