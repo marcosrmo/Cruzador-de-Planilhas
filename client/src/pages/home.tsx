@@ -194,7 +194,7 @@ export default function Home() {
                   </div>
                   <div className="bg-slate-800/80 p-4 rounded-lg border border-purple-500/30 text-center relative overflow-hidden shadow-lg shadow-purple-900/10">
                     <div className="absolute inset-0 bg-purple-500/5"></div>
-                    <div className="text-3xl font-bold text-purple-400 relative">{(result.stats.foundDetailed || 0) || result.stats.found}</div>
+                    <div className="text-3xl font-bold text-purple-400 relative">{clientsFile ? (result.stats.foundDetailed || result.stats.found) : result.stats.foundDetailed}</div>
                     <div className="text-xs text-purple-200 uppercase font-bold tracking-wider mt-1 relative">Devedores Extraídos</div>
                   </div>
                   <div className="bg-slate-800/80 p-4 rounded-lg border border-red-500/30 text-center relative overflow-hidden shadow-lg shadow-red-900/10">

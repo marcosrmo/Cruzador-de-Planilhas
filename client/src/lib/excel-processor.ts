@@ -229,21 +229,23 @@ export async function processFiles(
         const value = idxValue !== -1 ? row[idxValue] : '';
         const dueDate = idxDueDate !== -1 ? formatDate(row[idxDueDate]) : '';
 
-        if (phone) {
-          // Normaliza o telefone para comparação
-          const normalizedPhone = phone.replace(/\D/g, '');
-          const entryKeyDetailed = `${normalizedPhone}|${dueDate}`;
+        if (phone || !clientsFile) {
+          // Se não há base de clientes, consideramos todos como "encontrados/extraídos"
+          // mas ainda aplicamos a lógica de deduplicação e filtro de data
+          const normalizedPhone = phone ? phone.replace(/\D/g, '') : 'no-phone';
+          const entryKeyDetailed = `${normalizedPhone}|${dueDate}|${name}`;
           
-          // Lógica para Relatório Simples: Apenas um por telefone
-          if (!seenPhonesSimple.has(normalizedPhone)) {
-            resultData.push([name, phone]);
-            seenPhonesSimple.add(normalizedPhone);
+          // Lógica para Relatório Simples: Apenas um por telefone (ou nome se sem telefone)
+          const simpleKey = phone ? normalizedPhone : name;
+          if (!seenPhonesSimple.has(simpleKey)) {
+            resultData.push([name, phone || '']);
+            seenPhonesSimple.add(simpleKey);
             foundCount++;
           }
 
           // Lógica para Relatório Completo: Repete se a data for diferente
           if (!seenEntriesDetailed.has(entryKeyDetailed)) {
-            detailedData.push([name, phone, value, dueDate]);
+            detailedData.push([name, phone || '', value, dueDate]);
             seenEntriesDetailed.add(entryKeyDetailed);
             foundDetailedCount++;
           }
