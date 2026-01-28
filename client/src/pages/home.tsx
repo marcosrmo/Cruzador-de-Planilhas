@@ -10,55 +10,92 @@ import logoImg from "@/assets/logo.png";
 export default function Home() {
   const [clientsFile, setClientsFile] = useState<File | null>(null);
   const [debtorsFile, setDebtorsFile] = useState<File | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [result, setResult] = useState<{
+  const [extractionResult, setExtractionResult] = useState<{
     data: Uint8Array;
     detailedData?: Uint8Array;
     stats: { total: number; found: number; foundDetailed?: number; missing: number };
     fileName: string;
     detailedFileName?: string;
   } | null>(null);
+  const [crossingResult, setCrossingResult] = useState<{
+    data: Uint8Array;
+    detailedData?: Uint8Array;
+    stats: { total: number; found: number; foundDetailed?: number; missing: number };
+    fileName: string;
+    detailedFileName?: string;
+  } | null>(null);
+  const [isProcessingExtraction, setIsProcessingExtraction] = useState(false);
+  const [isProcessingCrossing, setIsProcessingCrossing] = useState(false);
   const { toast } = useToast();
 
-  const handleProcess = async () => {
+  const handleProcessExtraction = async () => {
     if (!debtorsFile) {
       toast({
         variant: "destructive",
         title: "Arquivo de devedores faltando",
-        description: "Por favor, selecione a planilha de devedores antes de processar.",
+        description: "Por favor, selecione a planilha de devedores antes de extrair.",
       });
       return;
     }
 
-    setIsProcessing(true);
-    setResult(null);
+    setIsProcessingExtraction(true);
+    setExtractionResult(null);
 
-    // Small delay to allow UI to update
     setTimeout(async () => {
-      const response = await processFiles(clientsFile, debtorsFile);
-
-      setIsProcessing(false);
+      const response = await processFiles(null, debtorsFile);
+      setIsProcessingExtraction(false);
 
       if (response.success && response.data && response.stats && response.fileName) {
-        setResult({
+        setExtractionResult({
           data: response.data,
           detailedData: response.detailedData,
           stats: response.stats,
           fileName: response.fileName,
           detailedFileName: response.detailedFileName
         });
-        
-        if (clientsFile) {
-          toast({
-            title: "Processamento concluído!",
-            description: `Encontrados ${response.stats.found} telefones de ${response.stats.total} devedores.`,
-          });
-        } else {
-          toast({
-            title: "Filtragem concluída!",
-            description: `A lista foi filtrada removendo os registros com baixa ou pagamento.`,
-          });
-        }
+        toast({
+          title: "Extração concluída!",
+          description: `A lista foi filtrada removendo os registros com baixa ou pagamento.`,
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Erro na extração",
+          description: response.message || "Ocorreu um erro desconhecido.",
+        });
+      }
+    }, 500);
+  };
+
+  const handleProcessCrossing = async () => {
+    if (!clientsFile || !debtorsFile) {
+      toast({
+        variant: "destructive",
+        title: "Arquivos faltando",
+        description: "Selecione ambas as planilhas para cruzar os dados.",
+      });
+      return;
+    }
+
+    setIsProcessingCrossing(true);
+    setCrossingResult(null);
+
+    setTimeout(async () => {
+      const response = await processFiles(clientsFile, debtorsFile);
+      setIsProcessingCrossing(false);
+
+      if (response.success && response.data && response.stats && response.fileName) {
+        setCrossingResult({
+          data: response.data,
+          detailedData: response.detailedData,
+          stats: response.stats,
+          fileName: response.fileName,
+          detailedFileName: response.detailedFileName
+        });
+        toast({
+          title: "Cruzamento concluído!",
+          description: `Encontrados ${response.stats.found} telefones de ${response.stats.total} devedores.`,
+        });
       } else {
         toast({
           variant: "destructive",
@@ -69,12 +106,10 @@ export default function Home() {
     }, 500);
   };
 
-  const downloadFile = (isDetailed = false) => {
-    if (!result) return;
-    
-    const data = isDetailed ? result.detailedData : result.data;
-    const fileName = isDetailed ? result.detailedFileName : result.fileName;
-
+  const downloadFile = (res: any, isDetailed = false) => {
+    if (!res) return;
+    const data = isDetailed ? res.detailedData : res.data;
+    const fileName = isDetailed ? res.detailedFileName : res.fileName;
     if (!data || !fileName) return;
 
     const blob = new Blob([data], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
@@ -110,7 +145,6 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="space-y-10">
           {/* Section 1: Extraction (Above) */}
           <Card className={`border border-amber-500/50 shadow-2xl shadow-amber-900/20 bg-slate-900/80 backdrop-blur-xl ring-1 ring-white/5 transition-all duration-300`}>
             <CardHeader className="border-b border-white/5 pb-6">
@@ -129,21 +163,54 @@ export default function Home() {
                 description="Arquivo com os nomes para filtrar baixa/pagamento."
                 onFileSelect={(file) => {
                   setDebtorsFile(file);
-                  setClientsFile(null); // Ensure no client file is used in this mode
+                  setExtractionResult(null);
                 }}
               />
-              {!result && !clientsFile && (
+              {isProcessingExtraction && (
+                <div className="flex flex-col items-center justify-center py-4 space-y-2 animate-in fade-in zoom-in duration-300">
+                  <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+                  <p className="text-white font-medium">Extraindo dados...</p>
+                </div>
+              )}
+              {extractionResult && (
+                <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-4 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-slate-800/80 p-3 rounded-lg border border-white/10 text-center shadow-lg">
+                      <div className="text-2xl font-bold text-white">{extractionResult.stats.total}</div>
+                      <div className="text-[10px] text-slate-300 uppercase font-bold tracking-wider mt-1">Total de Linhas</div>
+                    </div>
+                    <div className="bg-slate-800/80 p-3 rounded-lg border border-purple-500/30 text-center relative overflow-hidden shadow-lg shadow-purple-900/10">
+                      <div className="absolute inset-0 bg-purple-500/5"></div>
+                      <div className="text-2xl font-bold text-purple-400 relative">{extractionResult.stats.foundDetailed}</div>
+                      <div className="text-[10px] text-purple-200 uppercase font-bold tracking-wider mt-1 relative">Devedores Extraídos</div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Button 
+                      size="sm" 
+                      onClick={() => downloadFile(extractionResult, false)} 
+                      className="w-full bg-green-600 hover:bg-green-500 text-white font-bold h-10"
+                    >
+                      <Download className="mr-2 h-4 w-4" /> Baixar Simples
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      onClick={() => downloadFile(extractionResult, true)} 
+                      className="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold h-10"
+                    >
+                      <Download className="mr-2 h-4 w-4" /> Baixar Relatório Completo
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {!extractionResult && !isProcessingExtraction && (
                 <Button 
                   size="sm" 
-                  onClick={handleProcess} 
-                  disabled={isProcessing || !debtorsFile}
+                  onClick={handleProcessExtraction} 
+                  disabled={isProcessingExtraction || !debtorsFile}
                   className="w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white border-0 shadow-lg shadow-amber-900/30 font-bold h-10 transition-all duration-300 hover:scale-[1.02] text-base"
                 >
-                  {isProcessing ? (
-                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Extraindo...</>
-                  ) : (
-                    <>Extrair devedores</>
-                  )}
+                  <>Extrair devedores</>
                 </Button>
               )}
             </CardContent>
@@ -161,7 +228,7 @@ export default function Home() {
                 Selecione as duas planilhas para localizar os telefones na base completa.
               </CardDescription>
             </CardHeader>
-            <CardContent className="pt-6 space-y-8">
+            <CardContent className="pt-6 space-y-6">
               <div className="grid md:grid-cols-2 gap-8">
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 text-blue-300 font-bold text-lg">
@@ -171,7 +238,10 @@ export default function Home() {
                   <FileUpload 
                     label="Planilha Geral" 
                     description="Arquivo contendo Nome e Telefone de todos os clientes."
-                    onFileSelect={setClientsFile}
+                    onFileSelect={(file) => {
+                      setClientsFile(file);
+                      setCrossingResult(null);
+                    }}
                   />
                 </div>
 
@@ -184,7 +254,10 @@ export default function Home() {
                     <FileUpload 
                       label="Planilha de Nomes" 
                       description="Arquivo com os Nomes."
-                      onFileSelect={setDebtorsFile}
+                      onFileSelect={(file) => {
+                        setDebtorsFile(file);
+                        setCrossingResult(null);
+                      }}
                     />
                     <div className="mt-3 text-sm text-amber-200 bg-amber-950/40 p-3 rounded-lg border border-amber-500/30 flex items-start gap-3">
                       <span className="mt-0.5 text-xl leading-none">⚠️</span>
@@ -194,114 +267,64 @@ export default function Home() {
                 </div>
               </div>
 
-              {!result && clientsFile && (
+              {isProcessingCrossing && (
+                <div className="flex flex-col items-center justify-center py-4 space-y-2 animate-in fade-in zoom-in duration-300">
+                  <Loader2 className="h-10 w-10 animate-spin text-red-500" />
+                  <p className="text-white font-semibold">Cruzando dados...</p>
+                </div>
+              )}
+
+              {crossingResult && (
+                <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-6 space-y-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                    <div className="bg-slate-800/80 p-3 rounded-lg border border-white/10 text-center">
+                      <div className="text-xl font-bold text-white">{crossingResult.stats.total}</div>
+                      <div className="text-[10px] text-slate-300 uppercase font-bold mt-1">Total</div>
+                    </div>
+                    <div className="bg-slate-800/80 p-3 rounded-lg border border-green-500/30 text-center">
+                      <div className="text-xl font-bold text-green-400">{crossingResult.stats.found}</div>
+                      <div className="text-[10px] text-green-200 uppercase font-bold mt-1">Simples</div>
+                    </div>
+                    <div className="bg-slate-800/80 p-3 rounded-lg border border-amber-500/30 text-center">
+                      <div className="text-xl font-bold text-amber-400">{crossingResult.stats.foundDetailed}</div>
+                      <div className="text-[10px] text-amber-200 uppercase font-bold mt-1">Detalhado</div>
+                    </div>
+                    <div className="bg-slate-800/80 p-3 rounded-lg border border-purple-500/30 text-center">
+                      <div className="text-xl font-bold text-purple-400">{crossingResult.stats.foundDetailed}</div>
+                      <div className="text-[10px] text-purple-200 uppercase font-bold mt-1">Extraídos</div>
+                    </div>
+                    <div className="bg-slate-800/80 p-3 rounded-lg border border-red-500/30 text-center">
+                      <div className="text-xl font-bold text-red-400">{crossingResult.stats.missing}</div>
+                      <div className="text-[10px] text-red-200 uppercase font-bold mt-1">Pendentes</div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Button onClick={() => downloadFile(crossingResult, false)} className="flex-1 bg-green-600 font-bold">
+                      <Download className="mr-2 h-4 w-4" /> Baixar Simples
+                    </Button>
+                    <Button onClick={() => downloadFile(crossingResult, true)} className="flex-1 bg-amber-500 text-slate-900 font-bold">
+                      <Download className="mr-2 h-4 w-4" /> Baixar Relatório Completo
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {!crossingResult && !isProcessingCrossing && (
                 <Button 
                   size="lg" 
-                  onClick={handleProcess} 
-                  disabled={isProcessing || !debtorsFile || !clientsFile}
+                  onClick={handleProcessCrossing} 
+                  disabled={isProcessingCrossing || !debtorsFile || !clientsFile}
                   className="w-full bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white border-0 shadow-xl shadow-red-900/30 font-bold text-lg h-12 transition-all duration-300 hover:scale-[1.02]"
                 >
-                  {isProcessing ? (
-                    <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Processando...</>
-                  ) : (
-                    <>Processar e Adicionar Telefones</>
-                  )}
+                  <>Processar e Adicionar Telefones</>
                 </Button>
               )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Results Area (Shared) */}
-        {result && !isProcessing && (
-          <Card className="border border-green-500/30 shadow-2xl bg-slate-900/90 backdrop-blur-xl ring-1 ring-white/5">
-            <CardContent className="pt-6 space-y-6">
-              <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-6 space-y-4">
-                <div className="flex items-start space-x-3">
-                  <div className="p-2 bg-green-500/20 rounded-full border border-green-500/30">
-                    <CheckCircle className="h-6 w-6 text-green-400" />
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="font-bold text-lg text-green-300">Processamento Concluído!</h3>
-                    <p className="text-green-100 text-sm font-medium">
-                      {clientsFile ? 'Os telefones foram cruzados e o arquivo está pronto.' : 'A lista de devedores foi filtrada e extraída com sucesso.'}
-                    </p>
-                  </div>
-                </div>
-                
-                <div className={`grid gap-4 pt-2 ${clientsFile ? "grid-cols-2 sm:grid-cols-5" : "grid-cols-2"}`}>
-                  <div className="bg-slate-800/80 p-4 rounded-lg border border-white/10 text-center shadow-lg">
-                    <div className="text-3xl font-bold text-white">{result.stats.total}</div>
-                    <div className="text-xs text-slate-300 uppercase font-bold tracking-wider mt-1">Total de Linhas</div>
-                  </div>
-                  
-                  {clientsFile && (
-                    <>
-                      <div className="bg-slate-800/80 p-4 rounded-lg border border-green-500/30 text-center relative overflow-hidden shadow-lg shadow-green-900/10">
-                        <div className="absolute inset-0 bg-green-500/5"></div>
-                        <div className="text-3xl font-bold text-green-400 relative">{result.stats.found}</div>
-                        <div className="text-xs text-green-200 uppercase font-bold tracking-wider mt-1 relative">Encontrados Simples</div>
-                      </div>
-                      <div className="bg-slate-800/80 p-4 rounded-lg border border-amber-500/30 text-center relative overflow-hidden shadow-lg shadow-amber-900/10">
-                        <div className="absolute inset-0 bg-amber-500/5"></div>
-                        <div className="text-3xl font-bold text-amber-400 relative">{result.stats.foundDetailed || 0}</div>
-                        <div className="text-xs text-amber-200 uppercase font-bold tracking-wider mt-1 relative">Encontrados Detalhado</div>
-                      </div>
-                    </>
-                  )}
+        {/* Removed shared results area as it is now integrated into each section */}
 
-                  <div className="bg-slate-800/80 p-4 rounded-lg border border-purple-500/30 text-center relative overflow-hidden shadow-lg shadow-purple-900/10">
-                    <div className="absolute inset-0 bg-purple-500/5"></div>
-                    <div className="text-3xl font-bold text-purple-400 relative">{clientsFile ? (result.stats.foundDetailed || result.stats.found) : result.stats.foundDetailed}</div>
-                    <div className="text-xs text-purple-200 uppercase font-bold tracking-wider mt-1 relative">Devedores Extraídos</div>
-                  </div>
-
-                  {clientsFile && (
-                    <div className="bg-slate-800/80 p-4 rounded-lg border border-red-500/30 text-center relative overflow-hidden shadow-lg shadow-red-900/10">
-                      <div className="absolute inset-0 bg-red-500/5"></div>
-                      <div className="text-3xl font-bold text-red-400 relative">{result.stats.missing}</div>
-                      <div className="text-xs text-red-200 uppercase font-bold tracking-wider mt-1 relative">Não Encontrados</div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-col w-full gap-3">
-                <div className="flex w-full gap-3">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => {
-                      setResult(null);
-                      setClientsFile(null);
-                      setDebtorsFile(null);
-                    }}
-                    className="flex-1 border-white/20 bg-white/5 text-white hover:bg-white/10 h-12 font-medium"
-                  >
-                    Reiniciar
-                  </Button>
-                  <Button 
-                    size="lg" 
-                    onClick={() => downloadFile(false)} 
-                    className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white border-0 shadow-xl shadow-green-900/30 h-12 font-bold text-lg"
-                  >
-                    <Download className="mr-2 h-5 w-5" />
-                    Baixar Simples
-                  </Button>
-                </div>
-                {result.detailedData && (
-                  <Button 
-                    size="lg" 
-                    onClick={() => downloadFile(true)} 
-                    className="w-full bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-900 border-0 shadow-xl shadow-amber-900/30 h-12 font-bold text-lg transition-all duration-300 hover:scale-[1.01]"
-                  >
-                    <Download className="mr-2 h-5 w-5" />
-                    Baixar Relatório Completo
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
 
         {/* Support & Services Section */}
