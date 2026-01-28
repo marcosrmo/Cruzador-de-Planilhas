@@ -207,6 +207,7 @@ export async function processFiles(
     const detailedData = [['Nome', 'Telefone', 'Valor', 'Data de Vencimento']];
     const seenPhonesSimple = new Set<string>(); // Para o relatório simples (apenas Telefone)
     const seenEntriesDetailed = new Set<string>(); // Para o relatório completo (Telefone + Data)
+    let totalLinesProcessed = 0;
     let foundCount = 0;
     let foundDetailedCount = 0;
     let missingCount = 0;
@@ -220,10 +221,11 @@ export async function processFiles(
       const hasPaymentDate = idxPaymentDate !== -1 && row[idxPaymentDate] !== undefined && row[idxPaymentDate] !== null && String(row[idxPaymentDate]).trim() !== "";
 
       if (hasLowerDate || hasPaymentDate) {
-        continue; // Pula essa linha
+        continue; // Pula essa linha (já descontada do total de extraídos/encontrados)
       }
       
       if (name) {
+        totalLinesProcessed++;
         const normName = normalizeText(name);
         const phone = phoneMap.get(normName);
         const value = idxValue !== -1 ? row[idxValue] : '';
@@ -274,7 +276,7 @@ export async function processFiles(
       data: new Uint8Array(wbout),
       detailedData: new Uint8Array(detailedWbout),
       stats: {
-        total: foundCount + missingCount,
+        total: totalLinesProcessed,
         found: foundCount,
         foundDetailed: foundDetailedCount,
         missing: missingCount
