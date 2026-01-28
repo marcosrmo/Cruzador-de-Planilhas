@@ -103,6 +103,39 @@ export interface ProcessResult {
   detailedFileName?: string;
 }
 
+// Utility to format date to DD/MM/YYYY
+function formatDate(value: any): string {
+  if (!value) return "";
+  
+  // If it's a number (Excel date serial), convert it
+  if (typeof value === 'number') {
+    const date = XLSX.utils.format_cell({ v: value, t: 'd' });
+    if (date) {
+      const d = new Date(date);
+      if (!isNaN(d.getTime())) {
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        return `${day}/${month}/${year}`;
+      }
+    }
+  }
+
+  // If it's already a string, try to parse or return as is if already in DD/MM/YYYY
+  const str = String(value).trim();
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) return str;
+
+  const d = new Date(str);
+  if (!isNaN(d.getTime())) {
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  }
+
+  return str;
+}
+
 export async function processFiles(
   clientsFile: File, 
   debtorsFile: File
@@ -111,7 +144,7 @@ export async function processFiles(
     // 1. Read files
     const readExcel = async (file: File) => {
       const arrayBuffer = await file.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer);
+      const workbook = XLSX.read(arrayBuffer, { cellDates: true });
       const firstSheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[firstSheetName];
       return XLSX.utils.sheet_to_json(worksheet, { header: 1 }); // Read as array of arrays
@@ -200,7 +233,7 @@ export async function processFiles(
         const normName = normalizeText(name);
         const phone = phoneMap.get(normName);
         const value = idxValue !== -1 ? row[idxValue] : '';
-        const dueDate = idxDueDate !== -1 ? row[idxDueDate] : '';
+        const dueDate = idxDueDate !== -1 ? formatDate(row[idxDueDate]) : '';
 
         if (phone) {
           // Normaliza o telefone para comparação
