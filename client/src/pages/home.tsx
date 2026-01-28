@@ -13,8 +13,10 @@ export default function Home() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<{
     data: Uint8Array;
+    detailedData?: Uint8Array;
     stats: { total: number; found: number; missing: number };
     fileName: string;
+    detailedFileName?: string;
   } | null>(null);
   const { toast } = useToast();
 
@@ -40,8 +42,10 @@ export default function Home() {
       if (response.success && response.data && response.stats && response.fileName) {
         setResult({
           data: response.data,
+          detailedData: response.detailedData,
           stats: response.stats,
-          fileName: response.fileName
+          fileName: response.fileName,
+          detailedFileName: response.detailedFileName
         });
         toast({
           title: "Processamento concluído!",
@@ -57,14 +61,19 @@ export default function Home() {
     }, 500);
   };
 
-  const downloadFile = () => {
+  const downloadFile = (isDetailed = false) => {
     if (!result) return;
     
-    const blob = new Blob([result.data], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const data = isDetailed ? result.detailedData : result.data;
+    const fileName = isDetailed ? result.detailedFileName : result.fileName;
+
+    if (!data || !fileName) return;
+
+    const blob = new Blob([data], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = result.fileName;
+    a.download = fileName;
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
@@ -195,22 +204,34 @@ export default function Home() {
                 )}
               </Button>
             ) : (
-              <div className="flex w-full gap-3">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setResult(null)}
-                  className="flex-1 border-white/20 bg-white/5 text-white hover:bg-white/10 h-12 font-medium"
-                >
-                  Reiniciar
-                </Button>
-                <Button 
-                  size="lg" 
-                  onClick={downloadFile} 
-                  className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white border-0 shadow-xl shadow-green-900/30 h-12 font-bold text-lg"
-                >
-                  <Download className="mr-2 h-5 w-5" />
-                  Baixar Resultado
-                </Button>
+              <div className="flex flex-col w-full gap-3">
+                <div className="flex w-full gap-3">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setResult(null)}
+                    className="flex-1 border-white/20 bg-white/5 text-white hover:bg-white/10 h-12 font-medium"
+                  >
+                    Reiniciar
+                  </Button>
+                  <Button 
+                    size="lg" 
+                    onClick={() => downloadFile(false)} 
+                    className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white border-0 shadow-xl shadow-green-900/30 h-12 font-bold text-lg"
+                  >
+                    <Download className="mr-2 h-5 w-5" />
+                    Baixar Simples
+                  </Button>
+                </div>
+                {result.detailedData && (
+                  <Button 
+                    size="lg" 
+                    onClick={() => downloadFile(true)} 
+                    className="w-full bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-900 border-0 shadow-xl shadow-amber-900/30 h-12 font-bold text-lg transition-all duration-300 hover:scale-[1.01]"
+                  >
+                    <Download className="mr-2 h-5 w-5" />
+                    Baixar Relatório com Valor e Data
+                  </Button>
+                )}
               </div>
             )}
           </CardFooter>

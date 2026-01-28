@@ -93,12 +93,14 @@ export interface ProcessResult {
   success: boolean;
   message?: string;
   data?: Uint8Array;
+  detailedData?: Uint8Array; // New field for detailed report
   stats?: {
     total: number;
     found: number;
     missing: number;
   };
   fileName?: string;
+  detailedFileName?: string;
 }
 
 export async function processFiles(
@@ -128,9 +130,12 @@ export async function processFiles(
 
     const colNameClients = findSimilarColumn(clientsHeader, 'nome');
     const colPhoneClients = findSimilarColumn(clientsHeader, 'telefone');
+    
     const colNameDebtors = findSimilarColumn(debtorsHeader, 'nome');
     const colLowerDate = findSimilarColumn(debtorsHeader, 'data de baixa');
     const colPaymentDate = findSimilarColumn(debtorsHeader, 'data de pagamento');
+    const colValue = findSimilarColumn(debtorsHeader, 'valor');
+    const colDueDate = findSimilarColumn(debtorsHeader, 'data de vencimento');
 
     if (!colNameClients || !colPhoneClients) {
       return { 
@@ -152,6 +157,8 @@ export async function processFiles(
     const idxNameDebtors = debtorsHeader.indexOf(colNameDebtors);
     const idxLowerDate = colLowerDate ? debtorsHeader.indexOf(colLowerDate) : -1;
     const idxPaymentDate = colPaymentDate ? debtorsHeader.indexOf(colPaymentDate) : -1;
+    const idxValue = colValue ? debtorsHeader.indexOf(colValue) : -1;
+    const idxDueDate = colDueDate ? debtorsHeader.indexOf(colDueDate) : -1;
 
     // Map: Normalized Name -> Phone
     const phoneMap = new Map<string, string>();
@@ -164,8 +171,6 @@ export async function processFiles(
 
       if (name) {
         const normName = normalizeText(name);
-        // If duplicates exist, this takes the last one. Could be improved to take first or list all.
-        // For simplicity matching the python script which seemingly takes one.
         if (phone) {
             phoneMap.set(normName, String(phone));
         }
@@ -174,6 +179,7 @@ export async function processFiles(
 
     // 4. Process debtors
     const resultData = [['Nome', 'Telefone']];
+    const detailedData = [['Nome', 'Telefone', 'Valor', 'Data de Vencimento']];
     const seenPhones = new Set<string>();
     let foundCount = 0;
     let missingCount = 0;
@@ -187,46 +193,56 @@ export async function processFiles(
       const hasPaymentDate = idxPaymentDate !== -1 && row[idxPaymentDate] !== undefined && row[idxPaymentDate] !== null && String(row[idxPaymentDate]).trim() !== "";
 
       if (hasLowerDate || hasPaymentDate) {
-        continue; // Pula essa linha, não vai para a planilha final
+        continue; // Pula essa linha
       }
       
       if (name) {
         const normName = normalizeText(name);
         const phone = phoneMap.get(normName);
+        const value = idxValue !== -1 ? row[idxValue] : '';
+        const dueDate = idxDueDate !== -1 ? row[idxDueDate] : '';
 
         if (phone) {
-          // Normaliza o telefone para comparação (remove caracteres não numéricos)
+          // Normaliza o telefone para comparação
           const normalizedPhone = phone.replace(/\D/g, '');
           
           if (!seenPhones.has(normalizedPhone)) {
             resultData.push([name, phone]);
+            detailedData.push([name, phone, value, dueDate]);
             seenPhones.add(normalizedPhone);
             foundCount++;
           }
         } else {
           resultData.push([name, '']);
+          detailedData.push([name, '', value, dueDate]);
           missingCount++;
         }
       }
     }
 
-    // 5. Generate Output
-    const ws = XLSX.utils.aoa_to_sheet(resultData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Resultado");
+    // 5. Generate Outputs
+    const generateBuffer = (data: any[][]) => {
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Resultado");
+      return XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    };
 
-    // Generate buffer
-    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const wbout = generateBuffer(resultData);
+    const detailedWbout = generateBuffer(detailedData);
 
+    const dateStr = new Date().toISOString().slice(0,10);
     return {
       success: true,
       data: new Uint8Array(wbout),
+      detailedData: new Uint8Array(detailedWbout),
       stats: {
         total: foundCount + missingCount,
         found: foundCount,
         missing: missingCount
       },
-      fileName: `resultado_cobranca_${new Date().toISOString().slice(0,10)}.xlsx`
+      fileName: `resultado_simples_${dateStr}.xlsx`,
+      detailedFileName: `resultado_detalhado_${dateStr}.xlsx`
     };
 
   } catch (error) {
