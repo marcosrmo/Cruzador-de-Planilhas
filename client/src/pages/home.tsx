@@ -177,7 +177,7 @@ export default function Home() {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 pt-2">
                   <div className="bg-slate-800/80 p-4 rounded-lg border border-white/10 text-center shadow-lg">
                     <div className="text-3xl font-bold text-white">{result.stats.total}</div>
                     <div className="text-xs text-slate-300 uppercase font-bold tracking-wider mt-1">Total de Linhas</div>
@@ -191,6 +191,11 @@ export default function Home() {
                     <div className="absolute inset-0 bg-amber-500/5"></div>
                     <div className="text-3xl font-bold text-amber-400 relative">{result.stats.foundDetailed || 0}</div>
                     <div className="text-xs text-amber-200 uppercase font-bold tracking-wider mt-1 relative">Encontrados Detalhado</div>
+                  </div>
+                  <div className="bg-slate-800/80 p-4 rounded-lg border border-purple-500/30 text-center relative overflow-hidden shadow-lg shadow-purple-900/10">
+                    <div className="absolute inset-0 bg-purple-500/5"></div>
+                    <div className="text-3xl font-bold text-purple-400 relative">{(result.stats.foundDetailed || 0) || result.stats.found}</div>
+                    <div className="text-xs text-purple-200 uppercase font-bold tracking-wider mt-1 relative">Devedores Extraídos</div>
                   </div>
                   <div className="bg-slate-800/80 p-4 rounded-lg border border-red-500/30 text-center relative overflow-hidden shadow-lg shadow-red-900/10">
                     <div className="absolute inset-0 bg-red-500/5"></div>
@@ -226,9 +231,9 @@ export default function Home() {
                     className="w-full sm:w-auto bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white border-0 shadow-lg shadow-amber-900/30 font-bold h-10 transition-all duration-300 hover:scale-[1.02] text-base px-6"
                   >
                     {isProcessing ? (
-                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Filtrando...</>
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Extraindo...</>
                     ) : (
-                      <>Remover devedores</>
+                      <>Extrair devedores</>
                     )}
                   </Button>
                 )}
