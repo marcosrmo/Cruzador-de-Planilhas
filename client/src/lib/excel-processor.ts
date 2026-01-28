@@ -213,7 +213,8 @@ export async function processFiles(
     // 4. Process debtors
     const resultData = [['Nome', 'Telefone']];
     const detailedData = [['Nome', 'Telefone', 'Valor', 'Data de Vencimento']];
-    const seenEntries = new Set<string>(); // Control duplicates based on Phone + Due Date
+    const seenPhonesSimple = new Set<string>(); // Para o relatório simples (apenas Telefone)
+    const seenEntriesDetailed = new Set<string>(); // Para o relatório completo (Telefone + Data)
     let foundCount = 0;
     let missingCount = 0;
 
@@ -238,14 +239,25 @@ export async function processFiles(
         if (phone) {
           // Normaliza o telefone para comparação
           const normalizedPhone = phone.replace(/\D/g, '');
-          const entryKey = `${normalizedPhone}|${dueDate}`;
+          const entryKeyDetailed = `${normalizedPhone}|${dueDate}`;
           
-          if (!seenEntries.has(entryKey)) {
+          let addedToAny = false;
+
+          // Lógica para Relatório Simples: Apenas um por telefone
+          if (!seenPhonesSimple.has(normalizedPhone)) {
             resultData.push([name, phone]);
-            detailedData.push([name, phone, value, dueDate]);
-            seenEntries.add(entryKey);
-            foundCount++;
+            seenPhonesSimple.add(normalizedPhone);
+            addedToAny = true;
           }
+
+          // Lógica para Relatório Completo: Repete se a data for diferente
+          if (!seenEntriesDetailed.has(entryKeyDetailed)) {
+            detailedData.push([name, phone, value, dueDate]);
+            seenEntriesDetailed.add(entryKeyDetailed);
+            addedToAny = true;
+          }
+
+          if (addedToAny) foundCount++;
         } else {
           resultData.push([name, '']);
           detailedData.push([name, '', value, dueDate]);
