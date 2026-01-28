@@ -129,6 +129,8 @@ export async function processFiles(
     const colNameClients = findSimilarColumn(clientsHeader, 'nome');
     const colPhoneClients = findSimilarColumn(clientsHeader, 'telefone');
     const colNameDebtors = findSimilarColumn(debtorsHeader, 'nome');
+    const colLowerDate = findSimilarColumn(debtorsHeader, 'data de baixa');
+    const colPaymentDate = findSimilarColumn(debtorsHeader, 'data de pagamento');
 
     if (!colNameClients || !colPhoneClients) {
       return { 
@@ -148,6 +150,8 @@ export async function processFiles(
     const idxNameClients = clientsHeader.indexOf(colNameClients);
     const idxPhoneClients = clientsHeader.indexOf(colPhoneClients);
     const idxNameDebtors = debtorsHeader.indexOf(colNameDebtors);
+    const idxLowerDate = colLowerDate ? debtorsHeader.indexOf(colLowerDate) : -1;
+    const idxPaymentDate = colPaymentDate ? debtorsHeader.indexOf(colPaymentDate) : -1;
 
     // Map: Normalized Name -> Phone
     const phoneMap = new Map<string, string>();
@@ -177,6 +181,14 @@ export async function processFiles(
     for (let i = 1; i < debtorsDataRaw.length; i++) {
       const row = debtorsDataRaw[i];
       const name = row[idxNameDebtors];
+      
+      // Filtro de Datas: Ignorar se houver Data de Baixa ou Data de Pagamento preenchida
+      const hasLowerDate = idxLowerDate !== -1 && row[idxLowerDate] !== undefined && row[idxLowerDate] !== null && String(row[idxLowerDate]).trim() !== "";
+      const hasPaymentDate = idxPaymentDate !== -1 && row[idxPaymentDate] !== undefined && row[idxPaymentDate] !== null && String(row[idxPaymentDate]).trim() !== "";
+
+      if (hasLowerDate || hasPaymentDate) {
+        continue; // Pula essa linha, não vai para a planilha final
+      }
       
       if (name) {
         const normName = normalizeText(name);
