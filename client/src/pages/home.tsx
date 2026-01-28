@@ -189,17 +189,10 @@ export default function Home() {
                   <div className="flex flex-col gap-2">
                     <Button 
                       size="sm" 
-                      onClick={() => downloadFile(extractionResult, false)} 
-                      className="w-full bg-green-600 hover:bg-green-500 text-white font-bold h-10"
-                    >
-                      <Download className="mr-2 h-4 w-4" /> Baixar Simples
-                    </Button>
-                    <Button 
-                      size="sm" 
                       onClick={() => downloadFile(extractionResult, true)} 
                       className="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold h-10"
                     >
-                      <Download className="mr-2 h-4 w-4" /> Baixar Relatório Completo
+                      <Download className="mr-2 h-4 w-4" /> Baixar Relatório Extraído
                     </Button>
                   </div>
                 </div>
