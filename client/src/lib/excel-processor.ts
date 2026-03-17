@@ -142,21 +142,11 @@ export async function processFiles(
   debtorsFile: File
 ): Promise<ProcessResult> {
   try {
-    // 0. Check file sizes
-    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB max
-    if (debtorsFile.size > MAX_FILE_SIZE) {
-      return {
-        success: false,
-        message: `⚠️ AVISO: O arquivo de devedores tem ${(debtorsFile.size / 1024 / 1024).toFixed(1)}MB.\n\nIsso é MUITO grande e pode travar o navegador.\n\nSugestão: Divida o arquivo em partes menores (máximo 5MB cada) ou entre em contato para processamento em servidor.`
-      };
-    }
-
-    if (clientsFile && clientsFile.size > MAX_FILE_SIZE) {
-      return {
-        success: false,
-        message: `⚠️ AVISO: O arquivo de clientes tem ${(clientsFile.size / 1024 / 1024).toFixed(1)}MB.\n\nIsso é MUITO grande e pode travar o navegador.\n\nSugestão: Divida o arquivo em partes menores (máximo 5MB cada).`
-      };
-    }
+    // 0. Log file sizes for debugging
+    console.log("📦 FILE SIZES:", {
+      debtorsFile: `${(debtorsFile.size / 1024 / 1024).toFixed(1)}MB`,
+      clientsFile: clientsFile ? `${(clientsFile.size / 1024 / 1024).toFixed(1)}MB` : "Não fornecido"
+    });
 
     // 1. Read files
     const readExcel = async (file: File) => {
