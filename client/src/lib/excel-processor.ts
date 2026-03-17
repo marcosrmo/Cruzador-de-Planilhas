@@ -142,6 +142,22 @@ export async function processFiles(
   debtorsFile: File
 ): Promise<ProcessResult> {
   try {
+    // 0. Check file sizes
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB max
+    if (debtorsFile.size > MAX_FILE_SIZE) {
+      return {
+        success: false,
+        message: `⚠️ AVISO: O arquivo de devedores tem ${(debtorsFile.size / 1024 / 1024).toFixed(1)}MB.\n\nIsso é MUITO grande e pode travar o navegador.\n\nSugestão: Divida o arquivo em partes menores (máximo 5MB cada) ou entre em contato para processamento em servidor.`
+      };
+    }
+
+    if (clientsFile && clientsFile.size > MAX_FILE_SIZE) {
+      return {
+        success: false,
+        message: `⚠️ AVISO: O arquivo de clientes tem ${(clientsFile.size / 1024 / 1024).toFixed(1)}MB.\n\nIsso é MUITO grande e pode travar o navegador.\n\nSugestão: Divida o arquivo em partes menores (máximo 5MB cada).`
+      };
+    }
+
     // 1. Read files
     const readExcel = async (file: File) => {
       const arrayBuffer = await file.arrayBuffer();
@@ -160,16 +176,37 @@ export async function processFiles(
 
     // 2. Identify columns
     const debtorsHeader = debtorsDataRaw[0] as string[];
-    const colNameDebtors = findSimilarColumn(debtorsHeader, 'nome');
-    const colLowerDate = findSimilarColumn(debtorsHeader, 'data de baixa');
-    const colPaymentDate = findSimilarColumn(debtorsHeader, 'data de pagamento');
+    
+    // Debug: Log found columns
+    console.log("📋 DEBTORS HEADER:", debtorsHeader);
+    if (clientsDataRaw) {
+      const clientsHeader = clientsDataRaw[0] as string[];
+      console.log("📋 CLIENTS HEADER:", clientsHeader);
+    }
+    
+    // Try multiple patterns for each column
+    const colNameDebtors = findSimilarColumn(debtorsHeader, 'nome') || 
+                          findSimilarColumn(debtorsHeader, 'nome pagador');
+    const colLowerDate = findSimilarColumn(debtorsHeader, 'data de baixa') ||
+                        findSimilarColumn(debtorsHeader, 'data baixa');
+    const colPaymentDate = findSimilarColumn(debtorsHeader, 'data de pagamento') ||
+                          findSimilarColumn(debtorsHeader, 'data pagamento');
     const colValue = findSimilarColumn(debtorsHeader, 'valor');
-    const colDueDate = findSimilarColumn(debtorsHeader, 'data de vencimento');
+    const colDueDate = findSimilarColumn(debtorsHeader, 'data de vencimento') ||
+                      findSimilarColumn(debtorsHeader, 'data vencimento');
+
+    console.log("🔍 COLUMN MAPPING:", {
+      colNameDebtors,
+      colLowerDate,
+      colPaymentDate,
+      colValue,
+      colDueDate
+    });
 
     if (!colNameDebtors) {
       return { 
         success: false, 
-        message: `Não foi possível encontrar a coluna 'Nome' na planilha de devedores. Colunas encontradas: ${debtorsHeader.join(', ')}` 
+        message: `❌ Não foi possível encontrar a coluna de NOME na planilha de devedores.\n\nColunas encontradas: ${debtorsHeader.slice(0, 20).join(', ')}${debtorsHeader.length > 20 ? '... e mais' : ''}` 
       };
     }
 
@@ -184,7 +221,14 @@ export async function processFiles(
     if (clientsDataRaw && clientsDataRaw.length >= 2) {
       const clientsHeader = clientsDataRaw[0] as string[];
       const colNameClients = findSimilarColumn(clientsHeader, 'nome');
-      const colPhoneClients = findSimilarColumn(clientsHeader, 'telefone');
+      const colPhoneClients = findSimilarColumn(clientsHeader, 'telefone') || 
+                             findSimilarColumn(clientsHeader, 'fone') ||
+                             findSimilarColumn(clientsHeader, 'phone');
+
+      console.log("📞 CLIENTS COLUMN MAPPING:", {
+        colNameClients,
+        colPhoneClients
+      });
 
       if (colNameClients && colPhoneClients) {
         const idxNameClients = clientsHeader.indexOf(colNameClients);
@@ -199,6 +243,8 @@ export async function processFiles(
             if (phone) phoneMap.set(normName, String(phone));
           }
         }
+      } else {
+        console.warn("⚠️ Não foi possível mapear as colunas de clientes:", { colNameClients, colPhoneClients });
       }
     }
 
