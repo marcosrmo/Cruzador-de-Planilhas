@@ -217,7 +217,10 @@ export async function processFiles(
     const idxDueDate = colDueDate ? debtorsHeader.indexOf(colDueDate) : -1;
 
     // 3. Index Base data if available
+    // Map to store multiple phones per name, so we can prioritize 11-digit numbers
+    const phoneMapMultiple = new Map<string, string[]>();
     const phoneMap = new Map<string, string>();
+    
     if (clientsDataRaw && clientsDataRaw.length >= 2) {
       const clientsHeader = clientsDataRaw[0] as string[];
       const colNameClients = findSimilarColumn(clientsHeader, 'nome');
@@ -234,15 +237,42 @@ export async function processFiles(
         const idxNameClients = clientsHeader.indexOf(colNameClients);
         const idxPhoneClients = clientsHeader.indexOf(colPhoneClients);
 
+        // First pass: collect all phones per name
         for (let i = 1; i < clientsDataRaw.length; i++) {
           const row = clientsDataRaw[i];
           const name = row[idxNameClients];
           const phone = row[idxPhoneClients];
-          if (name) {
+          if (name && phone) {
             const normName = normalizeText(name);
-            if (phone) phoneMap.set(normName, String(phone));
+            const phoneStr = String(phone).trim();
+            
+            if (!phoneMapMultiple.has(normName)) {
+              phoneMapMultiple.set(normName, []);
+            }
+            phoneMapMultiple.get(normName)!.push(phoneStr);
           }
         }
+
+        // Second pass: select the best phone for each name
+        // Priority: 11-digit phone (celular) > any other phone
+        for (const [normName, phones] of phoneMapMultiple.entries()) {
+          const uniquePhones = Array.from(new Set(phones)); // Remove duplicates
+          
+          // Look for 11-digit phone (celular)
+          const elevenDigitPhone = uniquePhones.find(p => {
+            const digitsOnly = p.replace(/\D/g, '');
+            return digitsOnly.length === 11;
+          });
+          
+          if (elevenDigitPhone) {
+            phoneMap.set(normName, elevenDigitPhone);
+          } else if (uniquePhones.length > 0) {
+            // No 11-digit phone found, use the first available
+            phoneMap.set(normName, uniquePhones[0]);
+          }
+        }
+
+        console.log("✅ Phone mapping completed. Total names indexed:", phoneMap.size);
       } else {
         console.warn("⚠️ Não foi possível mapear as colunas de clientes:", { colNameClients, colPhoneClients });
       }
