@@ -89,19 +89,35 @@ function findSimilarColumn(columns: string[], pattern: string): string | null {
   return bestMatch;
 }
 
+// Find all columns from the header that match any of the given patterns (exact or normalized)
+function findMatchingColumns(headers: string[], patterns: string[]): string[] {
+  const normalizedPatterns = patterns.map(p => normalizeText(p));
+  const matched: string[] = [];
+  for (const col of headers) {
+    const normCol = normalizeText(col);
+    if (normalizedPatterns.includes(normCol)) {
+      matched.push(col);
+    }
+  }
+  return matched;
+}
+
 export interface ProcessResult {
   success: boolean;
   message?: string;
   data?: Uint8Array;
   detailedData?: Uint8Array; // New field for detailed report
+  semDevedoresData?: Uint8Array; // New field for clients without debtors
   stats?: {
     total: number;
     found: number;
     foundDetailed: number; // New field for detailed report count
     missing: number;
+    semDevedores?: number; // Count of clients without debtors
   };
   fileName?: string;
   detailedFileName?: string;
+  semDevedoresFileName?: string;
 }
 
 // Utility to format date to DD/MM/YYYY
@@ -136,6 +152,30 @@ function formatDate(value: any): string {
 
   return str;
 }
+
+// All possible column name patterns for the "sem devedores" spreadsheet
+const SEM_DEVEDORES_COLUMN_PATTERNS = [
+  "endereco",
+  "enderec",
+  "numero",
+  "n",
+  "bairro",
+  "complemento",
+  "comple",
+  "cidade",
+  "municipio",
+  "uf",
+  "estado",
+  "ticket medio",
+  "vl compras",
+  "data compras",
+  "dt compras",
+  "descricao",
+  "nota",
+  "nf",
+  "cpf",
+  "cnpj",
+];
 
 export async function processFiles(
   clientsFile: File | null, 
@@ -211,10 +251,17 @@ export async function processFiles(
     const phoneMapMultiple = new Map<string, string[]>();
     const phoneMap = new Map<string, string>();
     
+    // Extra info: store all extra column indices for clients
+    let clientsHeader: string[] = [];
+    let colNameClients: string | null = null;
+    let colPhoneClients: string | null = null;
+    let extraColIndices: number[] = [];
+    let extraColNames: string[] = [];
+
     if (clientsDataRaw && clientsDataRaw.length >= 2) {
-      const clientsHeader = clientsDataRaw[0] as string[];
-      const colNameClients = findSimilarColumn(clientsHeader, 'nome');
-      const colPhoneClients = findSimilarColumn(clientsHeader, 'telefone') || 
+      clientsHeader = clientsDataRaw[0] as string[];
+      colNameClients = findSimilarColumn(clientsHeader, 'nome');
+      colPhoneClients = findSimilarColumn(clientsHeader, 'telefone') || 
                              findSimilarColumn(clientsHeader, 'fone') ||
                              findSimilarColumn(clientsHeader, 'phone');
 
@@ -222,6 +269,12 @@ export async function processFiles(
         colNameClients,
         colPhoneClients
       });
+
+      // Find extra columns for sem devedores spreadsheet
+      const matchedExtraCols = findMatchingColumns(clientsHeader, SEM_DEVEDORES_COLUMN_PATTERNS);
+      extraColNames = matchedExtraCols;
+      extraColIndices = matchedExtraCols.map(c => clientsHeader.indexOf(c));
+      console.log("📊 EXTRA COLUMNS FOR SEM DEVEDORES:", extraColNames);
 
       if (colNameClients && colPhoneClients) {
         const idxNameClients = clientsHeader.indexOf(colNameClients);
@@ -278,6 +331,9 @@ export async function processFiles(
     let foundDetailedCount = 0;
     let missingCount = 0;
 
+    // Build set of debtor names (normalized) for filtering clients
+    const debtorNamesSet = new Set<string>();
+
     for (let i = 1; i < debtorsDataRaw.length; i++) {
       const row = debtorsDataRaw[i];
       const name = row[idxNameDebtors];
@@ -293,6 +349,10 @@ export async function processFiles(
       if (name) {
         totalLinesProcessed++;
         const normName = normalizeText(name);
+
+        // Register this as a debtor name
+        debtorNamesSet.add(normName);
+
         const phone = phoneMap.get(normName);
         const value = idxValue !== -1 ? row[idxValue] : '';
         const dueDate = idxDueDate !== -1 ? formatDate(row[idxDueDate]) : '';
@@ -326,7 +386,50 @@ export async function processFiles(
       }
     }
 
-    // 5. Generate Outputs
+    // 5. Build "Sem Devedores" spreadsheet (clients NOT in debtors list, with extra columns)
+    let semDevedoresData: Uint8Array | undefined;
+    let semDevedoresCount = 0;
+
+    if (clientsDataRaw && clientsDataRaw.length >= 2 && colNameClients) {
+      const idxNameClients = clientsHeader.indexOf(colNameClients);
+
+      // Build header row: Nome + extra columns found
+      const semDevedoresHeader = ['Nome', ...extraColNames];
+      const semDevedoresRows: any[][] = [semDevedoresHeader];
+
+      const seenClientNames = new Set<string>();
+
+      for (let i = 1; i < clientsDataRaw.length; i++) {
+        const row = clientsDataRaw[i];
+        const name = row[idxNameClients];
+        if (!name) continue;
+
+        const normName = normalizeText(name);
+
+        // Only include clients NOT in the debtors list
+        if (debtorNamesSet.has(normName)) continue;
+
+        // Deduplicate by normalized name
+        if (seenClientNames.has(normName)) continue;
+        seenClientNames.add(normName);
+
+        const extraValues = extraColIndices.map(idx => {
+          const val = row[idx];
+          if (val === undefined || val === null) return '';
+          return val;
+        });
+
+        semDevedoresRows.push([name, ...extraValues]);
+        semDevedoresCount++;
+      }
+
+      const wsSem = XLSX.utils.aoa_to_sheet(semDevedoresRows);
+      const wbSem = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wbSem, wsSem, "Sem Devedores");
+      semDevedoresData = new Uint8Array(XLSX.write(wbSem, { bookType: 'xlsx', type: 'array' }));
+    }
+
+    // 6. Generate Outputs
     const generateBuffer = (data: any[][]) => {
       const ws = XLSX.utils.aoa_to_sheet(data);
       const wb = XLSX.utils.book_new();
@@ -342,14 +445,17 @@ export async function processFiles(
       success: true,
       data: new Uint8Array(wbout),
       detailedData: new Uint8Array(detailedWbout),
+      semDevedoresData,
       stats: {
         total: totalLinesProcessed,
         found: foundCount,
         foundDetailed: foundDetailedCount,
-        missing: missingCount
+        missing: missingCount,
+        semDevedores: semDevedoresCount,
       },
       fileName: `resultado_simples_${dateStr}.xlsx`,
-      detailedFileName: `resultado_detalhado_${dateStr}.xlsx`
+      detailedFileName: `resultado_detalhado_${dateStr}.xlsx`,
+      semDevedoresFileName: `clientes_sem_devedores_${dateStr}.xlsx`,
     };
 
   } catch (error) {

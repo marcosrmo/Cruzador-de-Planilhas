@@ -2,28 +2,26 @@ import { useState } from "react";
 import { FileUpload } from "@/components/file-upload";
 import { Button } from "@/components/ui/button";
 import { processFiles } from "@/lib/excel-processor";
-import { Download, Loader2, CheckCircle, Smartphone, Instagram, Wrench } from "lucide-react";
+import { Download, Loader2, CheckCircle, Smartphone, Instagram, Wrench, Users } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import logoImg from "@/assets/logo.png";
 
+type ResultState = {
+  data: Uint8Array;
+  detailedData?: Uint8Array;
+  semDevedoresData?: Uint8Array;
+  stats: { total: number; found: number; foundDetailed?: number; missing: number; semDevedores?: number };
+  fileName: string;
+  detailedFileName?: string;
+  semDevedoresFileName?: string;
+} | null;
+
 export default function Home() {
   const [clientsFile, setClientsFile] = useState<File | null>(null);
   const [debtorsFile, setDebtorsFile] = useState<File | null>(null);
-  const [extractionResult, setExtractionResult] = useState<{
-    data: Uint8Array;
-    detailedData?: Uint8Array;
-    stats: { total: number; found: number; foundDetailed?: number; missing: number };
-    fileName: string;
-    detailedFileName?: string;
-  } | null>(null);
-  const [crossingResult, setCrossingResult] = useState<{
-    data: Uint8Array;
-    detailedData?: Uint8Array;
-    stats: { total: number; found: number; foundDetailed?: number; missing: number };
-    fileName: string;
-    detailedFileName?: string;
-  } | null>(null);
+  const [extractionResult, setExtractionResult] = useState<ResultState>(null);
+  const [crossingResult, setCrossingResult] = useState<ResultState>(null);
   const [isProcessingExtraction, setIsProcessingExtraction] = useState(false);
   const [isProcessingCrossing, setIsProcessingCrossing] = useState(false);
   const { toast } = useToast();
@@ -88,9 +86,11 @@ export default function Home() {
         setCrossingResult({
           data: response.data,
           detailedData: response.detailedData,
+          semDevedoresData: response.semDevedoresData,
           stats: response.stats,
           fileName: response.fileName,
-          detailedFileName: response.detailedFileName
+          detailedFileName: response.detailedFileName,
+          semDevedoresFileName: response.semDevedoresFileName,
         });
         toast({
           title: "Cruzamento concluído!",
@@ -106,10 +106,22 @@ export default function Home() {
     }, 500);
   };
 
-  const downloadFile = (res: any, isDetailed = false) => {
+  const downloadFile = (res: ResultState, type: 'simple' | 'detailed' | 'semDevedores' = 'simple') => {
     if (!res) return;
-    const data = isDetailed ? res.detailedData : res.data;
-    const fileName = isDetailed ? res.detailedFileName : res.fileName;
+    let data: Uint8Array | undefined;
+    let fileName: string | undefined;
+
+    if (type === 'semDevedores') {
+      data = res.semDevedoresData;
+      fileName = res.semDevedoresFileName;
+    } else if (type === 'detailed') {
+      data = res.detailedData;
+      fileName = res.detailedFileName;
+    } else {
+      data = res.data;
+      fileName = res.fileName;
+    }
+
     if (!data || !fileName) return;
 
     const blob = new Blob([data], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
@@ -189,8 +201,9 @@ export default function Home() {
                   <div className="flex flex-col gap-2">
                     <Button 
                       size="sm" 
-                      onClick={() => downloadFile(extractionResult, true)} 
+                      onClick={() => downloadFile(extractionResult, 'detailed')} 
                       className="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold h-10"
+                      data-testid="button-download-extraction"
                     >
                       <Download className="mr-2 h-4 w-4" /> Baixar Relatório Extraído
                     </Button>
@@ -203,6 +216,7 @@ export default function Home() {
                   onClick={handleProcessExtraction} 
                   disabled={isProcessingExtraction || !debtorsFile}
                   className="w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white border-0 shadow-lg shadow-amber-900/30 font-bold h-10 transition-all duration-300 hover:scale-[1.02] text-base"
+                  data-testid="button-extract-debtors"
                 >
                   Extrair devedores
                 </Button>
@@ -269,37 +283,72 @@ export default function Home() {
               )}
 
               {crossingResult && (
-                <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-6 space-y-4">
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-                    <div className="bg-slate-800/80 p-3 rounded-lg border border-white/10 text-center">
-                      <div className="text-xl font-bold text-white">{crossingResult.stats.total}</div>
-                      <div className="text-[10px] text-slate-300 uppercase font-bold mt-1">Total</div>
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-6 space-y-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                      <div className="bg-slate-800/80 p-3 rounded-lg border border-white/10 text-center">
+                        <div className="text-xl font-bold text-white" data-testid="stat-total">{crossingResult.stats.total}</div>
+                        <div className="text-[10px] text-slate-300 uppercase font-bold mt-1">Total</div>
+                      </div>
+                      <div className="bg-slate-800/80 p-3 rounded-lg border border-green-500/30 text-center">
+                        <div className="text-xl font-bold text-green-400" data-testid="stat-found">{crossingResult.stats.found}</div>
+                        <div className="text-[10px] text-green-200 uppercase font-bold mt-1">Simples</div>
+                      </div>
+                      <div className="bg-slate-800/80 p-3 rounded-lg border border-amber-500/30 text-center">
+                        <div className="text-xl font-bold text-amber-400" data-testid="stat-found-detailed">{crossingResult.stats.foundDetailed}</div>
+                        <div className="text-[10px] text-amber-200 uppercase font-bold mt-1">Detalhado</div>
+                      </div>
+                      <div className="bg-slate-800/80 p-3 rounded-lg border border-purple-500/30 text-center">
+                        <div className="text-xl font-bold text-purple-400" data-testid="stat-found-detailed-2">{crossingResult.stats.foundDetailed}</div>
+                        <div className="text-[10px] text-purple-200 uppercase font-bold mt-1">Extraídos</div>
+                      </div>
+                      <div className="bg-slate-800/80 p-3 rounded-lg border border-red-500/30 text-center">
+                        <div className="text-xl font-bold text-red-400" data-testid="stat-missing">{crossingResult.stats.missing}</div>
+                        <div className="text-[10px] text-red-200 uppercase font-bold mt-1">Pendentes</div>
+                      </div>
                     </div>
-                    <div className="bg-slate-800/80 p-3 rounded-lg border border-green-500/30 text-center">
-                      <div className="text-xl font-bold text-green-400">{crossingResult.stats.found}</div>
-                      <div className="text-[10px] text-green-200 uppercase font-bold mt-1">Simples</div>
-                    </div>
-                    <div className="bg-slate-800/80 p-3 rounded-lg border border-amber-500/30 text-center">
-                      <div className="text-xl font-bold text-amber-400">{crossingResult.stats.foundDetailed}</div>
-                      <div className="text-[10px] text-amber-200 uppercase font-bold mt-1">Detalhado</div>
-                    </div>
-                    <div className="bg-slate-800/80 p-3 rounded-lg border border-purple-500/30 text-center">
-                      <div className="text-xl font-bold text-purple-400">{crossingResult.stats.foundDetailed}</div>
-                      <div className="text-[10px] text-purple-200 uppercase font-bold mt-1">Extraídos</div>
-                    </div>
-                    <div className="bg-slate-800/80 p-3 rounded-lg border border-red-500/30 text-center">
-                      <div className="text-xl font-bold text-red-400">{crossingResult.stats.missing}</div>
-                      <div className="text-[10px] text-red-200 uppercase font-bold mt-1">Pendentes</div>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <Button
+                        onClick={() => downloadFile(crossingResult, 'simple')}
+                        className="flex-1 bg-green-600 hover:bg-green-500 font-bold"
+                        data-testid="button-download-simple"
+                      >
+                        <Download className="mr-2 h-4 w-4" /> Baixar Simples
+                      </Button>
+                      <Button
+                        onClick={() => downloadFile(crossingResult, 'detailed')}
+                        className="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold"
+                        data-testid="button-download-detailed"
+                      >
+                        <Download className="mr-2 h-4 w-4" /> Baixar Relatório Completo
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <Button onClick={() => downloadFile(crossingResult, false)} className="flex-1 bg-green-600 font-bold">
-                      <Download className="mr-2 h-4 w-4" /> Baixar Simples
-                    </Button>
-                    <Button onClick={() => downloadFile(crossingResult, true)} className="flex-1 bg-amber-500 text-slate-900 font-bold">
-                      <Download className="mr-2 h-4 w-4" /> Baixar Relatório Completo
-                    </Button>
-                  </div>
+
+                  {/* New: Sem Devedores Download */}
+                  {crossingResult.semDevedoresData && (
+                    <div className="rounded-xl border border-blue-500/40 bg-blue-950/30 p-5 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-5 h-5 text-blue-400 shrink-0" />
+                        <div>
+                          <p className="text-blue-200 font-bold text-sm">Planilha Sem Devedores</p>
+                          <p className="text-blue-300/70 text-xs">
+                            Clientes da base geral que <strong className="text-blue-200">não estão</strong> na lista de devedores
+                            {crossingResult.stats.semDevedores !== undefined && (
+                              <> — <span className="text-blue-100 font-bold">{crossingResult.stats.semDevedores}</span> registros</>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        onClick={() => downloadFile(crossingResult, 'semDevedores')}
+                        className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold h-11 text-sm shadow-lg shadow-blue-900/30 transition-all duration-200 hover:scale-[1.01]"
+                        data-testid="button-download-sem-devedores"
+                      >
+                        <Download className="mr-2 h-4 w-4" /> Baixar Planilha Sem Devedores
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -309,6 +358,7 @@ export default function Home() {
                   onClick={handleProcessCrossing} 
                   disabled={isProcessingCrossing || !debtorsFile || !clientsFile}
                   className="w-full bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white border-0 shadow-xl shadow-red-900/30 font-bold text-lg h-12 transition-all duration-300 hover:scale-[1.02]"
+                  data-testid="button-process-crossing"
                 >
                   Processar e Adicionar Telefones
                 </Button>
