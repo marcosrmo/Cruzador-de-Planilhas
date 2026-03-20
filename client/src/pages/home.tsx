@@ -235,6 +235,20 @@ export default function Home() {
               <CardDescription className="text-slate-300 text-sm">
                 Selecione as duas planilhas para localizar os telefones na base completa.
               </CardDescription>
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                <div className="flex items-start gap-2 bg-green-950/30 border border-green-500/20 rounded-lg p-3">
+                  <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
+                  <span className="text-green-200 text-xs font-medium">Adiciona telefones da base geral na lista de devedores</span>
+                </div>
+                <div className="flex items-start gap-2 bg-amber-950/30 border border-amber-500/20 rounded-lg p-3">
+                  <CheckCircle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+                  <span className="text-amber-200 text-xs font-medium">Gera relatório completo com valor e data de vencimento</span>
+                </div>
+                <div className="flex items-start gap-2 bg-blue-950/30 border border-blue-500/20 rounded-lg p-3">
+                  <CheckCircle className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
+                  <span className="text-blue-200 text-xs font-medium">Baixa planilha sem devedores com endereço, CPF, CNPJ e mais</span>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="pt-6 space-y-6">
               <div className="grid md:grid-cols-2 gap-8">
@@ -258,20 +272,14 @@ export default function Home() {
                     <div className="flex items-center justify-center w-8 h-8 rounded-full bg-red-500/20 border border-red-500/40 text-sm">2</div>
                     <span>Lista de Devedores</span>
                   </div>
-                  <div className="relative">
-                    <FileUpload 
-                      label="Planilha de Nomes" 
-                      description="Arquivo com os Nomes."
-                      onFileSelect={(file) => {
-                        setDebtorsFile(file);
-                        setCrossingResult(null);
-                      }}
-                    />
-                    <div className="mt-3 text-sm text-amber-200 bg-amber-950/40 p-3 rounded-lg border border-amber-500/30 flex items-start gap-3">
-                      <span className="mt-0.5 text-xl leading-none">⚠️</span>
-                      <p className="font-medium">Obrigatório ter coluna <strong className="text-amber-100 underline decoration-amber-500/50">Telefone</strong>.</p>
-                    </div>
-                  </div>
+                  <FileUpload 
+                    label="Planilha de Nomes" 
+                    description="Arquivo com os nomes que vem do banco, do jeito que ele vem do banco."
+                    onFileSelect={(file) => {
+                      setDebtorsFile(file);
+                      setCrossingResult(null);
+                    }}
+                  />
                 </div>
               </div>
 
