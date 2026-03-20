@@ -89,18 +89,6 @@ function findSimilarColumn(columns: string[], pattern: string): string | null {
   return bestMatch;
 }
 
-// Find all columns from the header that match any of the given patterns (exact or normalized)
-function findMatchingColumns(headers: string[], patterns: string[]): string[] {
-  const normalizedPatterns = patterns.map(p => normalizeText(p));
-  const matched: string[] = [];
-  for (const col of headers) {
-    const normCol = normalizeText(col);
-    if (normalizedPatterns.includes(normCol)) {
-      matched.push(col);
-    }
-  }
-  return matched;
-}
 
 export interface ProcessResult {
   success: boolean;
@@ -153,28 +141,20 @@ function formatDate(value: any): string {
   return str;
 }
 
-// All possible column name patterns for the "sem devedores" spreadsheet
-const SEM_DEVEDORES_COLUMN_PATTERNS = [
-  "endereco",
-  "enderec",
-  "numero",
-  "n",
-  "bairro",
-  "complemento",
-  "comple",
-  "cidade",
-  "municipio",
-  "uf",
-  "estado",
-  "ticket medio",
-  "vl compras",
-  "data compras",
-  "dt compras",
-  "descricao",
-  "nota",
-  "nf",
-  "cpf",
-  "cnpj",
+// Column groups for "sem devedores" spreadsheet.
+// Each group has a display label and multiple patterns to search in the input.
+const SEM_DEVEDORES_GROUPS: { label: string; patterns: string[] }[] = [
+  { label: "CNPJ/CPF",        patterns: ["cnpj/cpf", "cnpj cpf", "cnpj", "cpf"] },
+  { label: "CIDADE",           patterns: ["cidade", "municipio"] },
+  { label: "FONE",             patterns: ["fone", "telefone", "phone"] },
+  { label: "LOGRADOURO",       patterns: ["logradouro", "endereco", "enderec", "endereço", "rua", "logr"] },
+  { label: "N",                patterns: ["numero", "num", "n"] },
+  { label: "BAIRRO",           patterns: ["bairro"] },
+  { label: "U.F.",             patterns: ["uf", "u f", "estado"] },
+  { label: "CEP",              patterns: ["cep"] },
+  { label: "Dt. Últ. Compra", patterns: ["dt ult compra", "data ult compra", "data ultima compra", "data compras", "dt compras", "dt compra", "data compra", "dt ult"] },
+  { label: "Descrição",        patterns: ["descricao", "descricão", "descricao", "desc", "nota", "nf"] },
+  { label: "Qt. Total",        patterns: ["qt total", "quantidade total", "qtd total", "qt", "quantidade", "qtd", "vl compras", "ticket medio"] },
 ];
 
 export async function processFiles(
@@ -270,10 +250,22 @@ export async function processFiles(
         colPhoneClients
       });
 
-      // Find extra columns for sem devedores spreadsheet
-      const matchedExtraCols = findMatchingColumns(clientsHeader, SEM_DEVEDORES_COLUMN_PATTERNS);
-      extraColNames = matchedExtraCols;
-      extraColIndices = matchedExtraCols.map(c => clientsHeader.indexOf(c));
+      // Find extra columns for sem devedores spreadsheet using group-based matching
+      for (const group of SEM_DEVEDORES_GROUPS) {
+        let foundCol: string | null = null;
+        for (const pattern of group.patterns) {
+          foundCol = findSimilarColumn(clientsHeader, pattern);
+          if (foundCol) break;
+        }
+        if (foundCol) {
+          extraColNames.push(group.label);
+          extraColIndices.push(clientsHeader.indexOf(foundCol));
+        } else {
+          // Column not found — include it as empty
+          extraColNames.push(group.label);
+          extraColIndices.push(-1);
+        }
+      }
       console.log("📊 EXTRA COLUMNS FOR SEM DEVEDORES:", extraColNames);
 
       if (colNameClients && colPhoneClients) {
@@ -414,6 +406,7 @@ export async function processFiles(
         seenClientNames.add(normName);
 
         const extraValues = extraColIndices.map(idx => {
+          if (idx === -1) return '';
           const val = row[idx];
           if (val === undefined || val === null) return '';
           return val;
