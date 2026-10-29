@@ -9,7 +9,31 @@ interface FileUploadProps {
   accept?: string;
 }
 
-export function FileUpload({ label, description, onFileSelect, accept = ".xlsx, .xls" }: FileUploadProps) {
+const SUPPORTED_SPREADSHEET_EXTENSIONS = [
+  ".xlsx", ".xlsm", ".xlsb", ".xls", ".xltx", ".xltm", ".xlt", ".xlm", ".xla", ".xlam", ".xlw", ".xml",
+  ".csv", ".tsv", ".txt", ".dif", ".slk", ".sylk", ".prn",
+  ".numbers", ".ods", ".fods", ".uos", ".uos1", ".uos2", ".dbf",
+  ".wk1", ".wk3", ".wks", ".wk2", ".wk4", ".123",
+  ".wq1", ".wq2", ".wb1", ".wb2", ".wb3", ".qpw", ".xlr", ".eth",
+  ".html", ".htm",
+];
+
+const SUPPORTED_MIME_TYPES = new Set([
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+  "application/vnd.ms-excel.sheet.macroEnabled.12",
+  "application/vnd.ms-excel.sheet.binary.macroEnabled.12",
+  "application/vnd.ms-excel.template.macroEnabled.12",
+  "application/vnd.oasis.opendocument.spreadsheet",
+  "text/csv",
+  "text/tab-separated-values",
+]);
+const DEFAULT_ACCEPT = [
+  ...SUPPORTED_SPREADSHEET_EXTENSIONS,
+  ...Array.from(SUPPORTED_MIME_TYPES),
+].join(",");
+
+export function FileUpload({ label, description, onFileSelect, accept = DEFAULT_ACCEPT }: FileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
@@ -41,11 +65,16 @@ export function FileUpload({ label, description, onFileSelect, accept = ".xlsx, 
   }, []);
 
   const handleFile = (file: File) => {
-    if (file && (file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls') || file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || file.type === 'application/vnd.ms-excel')) {
+    const extension = file.name.toLowerCase().match(/\.[^.]+$/)?.[0];
+    const hasSupportedExtension = Boolean(extension && SUPPORTED_SPREADSHEET_EXTENSIONS.includes(extension));
+    const hasSupportedMimeType = SUPPORTED_MIME_TYPES.has(file.type);
+
+    // MIME types are inconsistent across browsers and file sources; accept either a known extension or MIME type.
+    if (file && (hasSupportedExtension || hasSupportedMimeType)) {
       setSelectedFile(file);
       onFileSelect(file);
     } else {
-      alert("Por favor, selecione um arquivo Excel (.xlsx ou .xls)");
+      alert(`Formato não suportado. Use uma planilha Excel ou arquivo compatível: ${SUPPORTED_SPREADSHEET_EXTENSIONS.join(", ")}`);
     }
   };
 
@@ -90,6 +119,9 @@ export function FileUpload({ label, description, onFileSelect, accept = ".xlsx, 
                   {description}
                 </p>
               )}
+              <p className="text-[11px] text-slate-500">
+                Compatível com XLS, XLSX, XLSM, XLSB, ODS, CSV e outros formatos de planilha.
+              </p>
             </div>
           </div>
         </div>

@@ -283,16 +283,41 @@ export async function processFiles(
     });
 
     // 1. Read files
-    const readExcel = async (file: File) => {
-      const arrayBuffer = await file.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { cellDates: true });
-      const firstSheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[firstSheetName];
-      return XLSX.utils.sheet_to_json(worksheet, { header: 1 }); // Read as array of arrays
+    const readExcel = async (file: File, label: string) => {
+      try {
+        if (!file || file.size === 0) {
+          throw new Error("o arquivo está vazio");
+        }
+
+        const arrayBuffer = await file.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, { cellDates: true });
+        if (!workbook.SheetNames.length) {
+          throw new Error("nenhuma aba foi encontrada");
+        }
+
+        // Some exports include a blank cover sheet before the actual table.
+        const firstSheetName = workbook.SheetNames.find(name => {
+          const sheet = workbook.Sheets[name];
+          return Boolean(sheet && sheet["!ref"]);
+        }) ?? workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        if (!worksheet) {
+          throw new Error("a primeira aba não pôde ser aberta");
+        }
+
+        const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false });
+        if (!rows.length) {
+          throw new Error("a aba selecionada não contém dados");
+        }
+        return rows;
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        throw new Error(`Não foi possível ler a planilha ${label} "${file.name}": ${reason}`);
+      }
     };
 
-    const debtorsDataRaw = await readExcel(debtorsFile) as any[][];
-    const clientsDataRaw = clientsFile ? await readExcel(clientsFile) as any[][] : null;
+    const debtorsDataRaw = await readExcel(debtorsFile, "de devedores") as any[][];
+    const clientsDataRaw = clientsFile ? await readExcel(clientsFile, "de clientes") as any[][] : null;
 
     if (debtorsDataRaw.length < 2) {
       return { success: false, message: "A planilha de devedores parece estar vazia." };
