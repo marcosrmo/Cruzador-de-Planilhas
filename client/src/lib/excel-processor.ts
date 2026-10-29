@@ -732,7 +732,11 @@ export async function processFiles(
     };
 
   } catch (error) {
-    console.error(error);
-    return { success: false, message: "Erro ao processar arquivos. Verifique se são arquivos Excel válidos." };
+    console.error("Erro ao processar planilhas:", error);
+    const detail = error instanceof Error ? error.message : String(error);
+    return {
+      success: false,
+      message: `Erro ao processar arquivos. Verifique se são arquivos Excel válidos. Detalhe: ${detail}`,
+    };
   }
 }
