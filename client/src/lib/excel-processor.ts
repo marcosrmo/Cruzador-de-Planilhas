@@ -275,6 +275,7 @@ export async function processFiles(
   clientsFile: File | null, 
   debtorsFile: File
 ): Promise<ProcessResult> {
+  let processingStage = "inicialização";
   try {
     // 0. Log file sizes for debugging
     console.log("📦 FILE SIZES:", {
@@ -316,9 +317,12 @@ export async function processFiles(
       }
     };
 
+    processingStage = "leitura da planilha de devedores";
     const debtorsDataRaw = await readExcel(debtorsFile, "de devedores") as any[][];
+    processingStage = "leitura da base de clientes";
     const clientsDataRaw = clientsFile ? await readExcel(clientsFile, "de clientes") as any[][] : null;
 
+    processingStage = "identificação das colunas";
     if (debtorsDataRaw.length < 2) {
       return { success: false, message: "A planilha de devedores parece estar vazia." };
     }
@@ -390,6 +394,7 @@ export async function processFiles(
     }>();
 
     if (clientsDataRaw && clientsDataRaw.length >= 2) {
+      processingStage = "identificação das colunas da base de clientes";
       clientsHeader = clientsDataRaw[0] as string[];
       colNameClients = findSimilarColumn(clientsHeader, 'nome');
       colPhoneClients = findSimilarColumn(clientsHeader, 'telefone') || 
@@ -419,6 +424,7 @@ export async function processFiles(
       }
       console.log("📊 EXTRA COLUMNS FOR SEM DEVEDORES:", extraColNames);
 
+      processingStage = "mapeamento dos campos completos";
       completeClientNameIndex = findColumnIndexByPatterns(clientsHeader, COMPLETE_EXPORT_FIELDS[0].patterns);
       completeClientPhoneIndices = findPhoneColumnIndices(clientsHeader);
       completeDebtorPhoneIndices = findPhoneColumnIndices(debtorsHeader);
@@ -450,6 +456,7 @@ export async function processFiles(
       );
 
       if (completeClientNameIndex !== -1) {
+        processingStage = "indexação dos registros completos da base de clientes";
         for (let i = 1; i < clientsDataRaw.length; i++) {
           const row = clientsDataRaw[i];
           const name = row[completeClientNameIndex];
@@ -491,6 +498,7 @@ export async function processFiles(
       }
 
       if (colNameClients && colPhoneClients) {
+        processingStage = "indexação dos telefones da base de clientes";
         const idxNameClients = clientsHeader.indexOf(colNameClients);
         const idxPhoneClients = clientsHeader.indexOf(colPhoneClients);
 
@@ -539,6 +547,7 @@ export async function processFiles(
     }
 
     // 4. Process debtors
+    processingStage = "cruzamento dos devedores";
     const resultData = [['Nome', 'Telefone']];
     const detailedData = [['Nome', 'Telefone', 'Valor', 'Data de Vencimento']];
     const seenPhonesSimple = new Set<string>(); // Para o relatório simples (apenas Telefone)
@@ -606,6 +615,7 @@ export async function processFiles(
     }
 
     // 5. Build "Sem Devedores" spreadsheet (clients NOT in debtors list, with extra columns)
+    processingStage = "montagem da planilha sem devedores";
     let semDevedoresData: Uint8Array | undefined;
     let semDevedoresCount = 0;
 
@@ -650,6 +660,7 @@ export async function processFiles(
     }
 
     // Additional normalized exports; the existing reports above remain unchanged.
+    processingStage = "montagem das planilhas completas";
     let semDevedoresCompletaData: Uint8Array | undefined;
     let devedoresCompletaData: Uint8Array | undefined;
     let semDevedoresCompletaCount = 0;
@@ -722,6 +733,7 @@ export async function processFiles(
     }
 
     // 6. Generate Outputs
+    processingStage = "geração dos arquivos Excel";
     const generateBuffer = (data: any[][]) => {
       const ws = XLSX.utils.aoa_to_sheet(data);
       const wb = XLSX.utils.book_new();
@@ -757,11 +769,11 @@ export async function processFiles(
     };
 
   } catch (error) {
-    console.error("Erro ao processar planilhas:", error);
     const detail = error instanceof Error ? error.message : String(error);
+    console.error(`Erro ao processar planilhas durante "${processingStage}": ${detail}`);
     return {
       success: false,
-      message: `Erro ao processar arquivos. Verifique se são arquivos Excel válidos. Detalhe: ${detail}`,
+      message: `Erro ao processar arquivos durante "${processingStage}". Detalhe: ${detail}`,
     };
   }
 }
