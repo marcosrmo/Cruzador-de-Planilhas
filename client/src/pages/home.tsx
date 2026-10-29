@@ -11,10 +11,22 @@ type ResultState = {
   data: Uint8Array;
   detailedData?: Uint8Array;
   semDevedoresData?: Uint8Array;
-  stats: { total: number; found: number; foundDetailed?: number; missing: number; semDevedores?: number };
+  semDevedoresCompletaData?: Uint8Array;
+  devedoresCompletaData?: Uint8Array;
+  stats: {
+    total: number;
+    found: number;
+    foundDetailed?: number;
+    missing: number;
+    semDevedores?: number;
+    semDevedoresCompleta?: number;
+    devedoresCompletos?: number;
+  };
   fileName: string;
   detailedFileName?: string;
   semDevedoresFileName?: string;
+  semDevedoresCompletaFileName?: string;
+  devedoresCompletaFileName?: string;
 } | null;
 
 export default function Home() {
@@ -87,10 +99,14 @@ export default function Home() {
           data: response.data,
           detailedData: response.detailedData,
           semDevedoresData: response.semDevedoresData,
+          semDevedoresCompletaData: response.semDevedoresCompletaData,
+          devedoresCompletaData: response.devedoresCompletaData,
           stats: response.stats,
           fileName: response.fileName,
           detailedFileName: response.detailedFileName,
           semDevedoresFileName: response.semDevedoresFileName,
+          semDevedoresCompletaFileName: response.semDevedoresCompletaFileName,
+          devedoresCompletaFileName: response.devedoresCompletaFileName,
         });
         toast({
           title: "Cruzamento concluído!",
@@ -106,7 +122,10 @@ export default function Home() {
     }, 500);
   };
 
-  const downloadFile = (res: ResultState, type: 'simple' | 'detailed' | 'semDevedores' = 'simple') => {
+  const downloadFile = (
+    res: ResultState,
+    type: 'simple' | 'detailed' | 'semDevedores' | 'semDevedoresCompleta' | 'devedoresCompleta' = 'simple'
+  ) => {
     if (!res) return;
     let data: Uint8Array | undefined;
     let fileName: string | undefined;
@@ -114,6 +133,12 @@ export default function Home() {
     if (type === 'semDevedores') {
       data = res.semDevedoresData;
       fileName = res.semDevedoresFileName;
+    } else if (type === 'semDevedoresCompleta') {
+      data = res.semDevedoresCompletaData;
+      fileName = res.semDevedoresCompletaFileName;
+    } else if (type === 'devedoresCompleta') {
+      data = res.devedoresCompletaData;
+      fileName = res.devedoresCompletaFileName;
     } else if (type === 'detailed') {
       data = res.detailedData;
       fileName = res.detailedFileName;
@@ -355,6 +380,42 @@ export default function Home() {
                       >
                         <Download className="mr-2 h-4 w-4" /> Baixar Planilha Sem Devedores
                       </Button>
+                    </div>
+                  )}
+
+                  {(crossingResult.semDevedoresCompletaData || crossingResult.devedoresCompletaData) && (
+                    <div className="rounded-xl border border-purple-500/40 bg-purple-950/30 p-5 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-5 h-5 text-purple-400 shrink-0" />
+                        <div>
+                          <p className="text-purple-200 font-bold text-sm">Planilhas completas com dados</p>
+                          <p className="text-purple-300/70 text-xs">
+                            Campos reconhecidos automaticamente, incluindo todos os telefones únicos e os dados extras disponíveis.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {crossingResult.semDevedoresCompletaData && (
+                          <Button
+                            onClick={() => downloadFile(crossingResult, 'semDevedoresCompleta')}
+                            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold min-h-11"
+                            data-testid="button-download-sem-devedores-completo"
+                          >
+                            <Download className="mr-2 h-4 w-4 shrink-0" />
+                            <span>Sem Devedores ({crossingResult.stats.semDevedoresCompleta ?? 0})</span>
+                          </Button>
+                        )}
+                        {crossingResult.devedoresCompletaData && (
+                          <Button
+                            onClick={() => downloadFile(crossingResult, 'devedoresCompleta')}
+                            className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold min-h-11"
+                            data-testid="button-download-devedores-completo"
+                          >
+                            <Download className="mr-2 h-4 w-4 shrink-0" />
+                            <span>Devedores ({crossingResult.stats.devedoresCompletos ?? 0})</span>
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>

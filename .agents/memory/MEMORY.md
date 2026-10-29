@@ -1,0 +1,1 @@
+- [Date header matching](date-header-matching.md) — use explicit aliases for due/payment dates; fuzzy matches can silently treat open debts as paid.
