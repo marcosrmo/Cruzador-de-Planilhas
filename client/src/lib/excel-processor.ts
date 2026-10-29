@@ -181,7 +181,9 @@ const COMPLETE_EXTRA_GROUPS = SEM_DEVEDORES_GROUPS.filter(
 );
 
 function findColumnIndexByPatterns(headers: string[], patterns: string[]): number {
-  const normalizedHeaders = headers.map(header => normalizeText(header));
+  // sheet_to_json can return sparse arrays when the worksheet has blank header cells.
+  // Array.from fills those gaps so findIndex never calls includes on an undefined slot.
+  const normalizedHeaders = Array.from(headers, header => normalizeText(header));
   const normalizedPatterns = patterns.map(pattern => normalizeText(pattern));
 
   for (const pattern of normalizedPatterns) {
