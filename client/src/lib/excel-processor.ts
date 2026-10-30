@@ -222,32 +222,61 @@ function findCpfCnpjColumnIndices(headers: string[]): number[] {
   }, []);
 }
 
-function findDocumentColumnIndices(headers: string[]): number[] {
-  const documentPatterns = [
-    "numero do documento",
-    "numero documento",
-    "num documento",
-    "nro documento",
-    "n documento",
-    "documento",
-    "nosso numero",
-    "seu numero",
-    "numero do titulo",
-    "numero titulo",
-    "id documento",
+function findDocumentColumnIndex(headers: string[]): number {
+  const normalizedHeaders = Array.from(headers, header => normalizeText(header));
+  const priorityPatterns = [
+    ["numero da nota fiscal", "numero nota fiscal", "numero da nota", "numero nota", "nf"],
+    ["numero do documento", "numero documento", "num documento", "nro documento", "n do documento", "n documento"],
+    ["seu numero"],
+    ["numero do titulo", "numero titulo", "num titulo", "nro titulo"],
+    ["nota fiscal"],
+    ["documento"],
+    ["nosso numero"],
   ];
-  return headers.reduce<number[]>((indices, header, index) => {
-    const normalized = normalizeText(header);
-    const matches = documentPatterns.some(pattern => (
-      normalized === pattern || (pattern !== "documento" && normalized.includes(pattern))
-    ));
-    if (matches) indices.push(index);
-    return indices;
-  }, []);
+
+  for (const patterns of priorityPatterns) {
+    for (const pattern of patterns) {
+      const index = normalizedHeaders.findIndex(header => header === pattern);
+      if (index !== -1) return index;
+    }
+  }
+
+  // Fallbacks allow qualified headers such as "Seu Numero do Titulo" without
+  // accidentally matching a document type like "Especie Documento".
+  for (const pattern of [
+    "numero da nota fiscal", "numero nota fiscal", "numero da nota", "numero nota",
+    "numero do documento", "numero documento", "num documento", "nro documento", "n do documento",
+    "seu numero", "numero do titulo", "numero titulo", "nosso numero",
+  ]) {
+    const index = normalizedHeaders.findIndex(header => header.includes(pattern));
+    if (index !== -1) return index;
+  }
+
+  return -1;
 }
 
 function hasCellValue(value: any): boolean {
   return value !== undefined && value !== null && String(value).trim() !== "";
+}
+
+const EMPTY_SETTLEMENT_DATE_MARKERS = new Set([
+  "", "-", "--", "na", "n a", "n/a", "nd", "n d", "0",
+  "pendente", "em aberto", "aberto", "sem data", "sem baixa", "sem pagamento",
+  "nao", "nao pago", "nao efetuado", "nao baixado",
+]);
+
+function hasSettlementDate(value: any): boolean {
+  if (value === false || !hasCellValue(value)) return false;
+  if (value instanceof Date) {
+    return Number.isFinite(value.getTime()) && value.getFullYear() >= 1901;
+  }
+  if (typeof value === "number") return Number.isFinite(value) && value > 0;
+
+  const text = String(value).trim();
+  const normalized = normalizeText(text);
+  if (/^0{1,2}[./-]0{1,2}[./-]0{4}$/.test(text)) return false;
+  if (/^0+$/.test(text.replace(/\D/g, "")) && /\d/.test(text)) return false;
+  return !EMPTY_SETTLEMENT_DATE_MARKERS.has(normalized);
 }
 
 function splitPhoneValues(value: any): string[] {
@@ -329,19 +358,6 @@ function aggregateColumnValues(
 ): any {
   if (columnIndex < 0) return "";
   return aggregateCellValues(rows.map(row => row?.[columnIndex]), formatValue);
-}
-
-function aggregateColumnsAcrossRows(
-  rows: any[][],
-  columnIndices: number[],
-): any {
-  const values: any[] = [];
-  for (const row of rows) {
-    for (const columnIndex of columnIndices) {
-      if (columnIndex >= 0) values.push(row?.[columnIndex]);
-    }
-  }
-  return aggregateCellValues(values, value => String(value).trim());
 }
 
 function parseCurrencyAmount(value: any): number | null {
@@ -439,8 +455,17 @@ export async function processFiles(
     // Try multiple patterns for each column
     const colNameDebtors = findSimilarColumn(debtorsHeader, 'nome') || 
                           findSimilarColumn(debtorsHeader, 'nome pagador');
-    const colLowerDate = findColumnNameByPatterns(debtorsHeader, ['data de baixa', 'data baixa']);
-    const colPaymentDate = findColumnNameByPatterns(debtorsHeader, ['data de pagamento', 'data pagamento']);
+    const colLowerDate = findColumnNameByPatterns(debtorsHeader, [
+      "data de baixa", "data da baixa", "data baixa", "dt de baixa", "dt da baixa", "dt baixa",
+      "data de quitacao", "data da quitacao", "data quitacao", "dt quitacao",
+      "data de liquidacao", "data da liquidacao", "data liquidacao", "dt liquidacao",
+    ]);
+    const colPaymentDate = findColumnNameByPatterns(debtorsHeader, [
+      "data de pagamento", "data do pagamento", "data pagamento",
+      "dt de pagamento", "dt do pagamento", "dt pagamento",
+      "data pgto", "data pagto", "dt pgto", "dt pagto",
+      "data de pgto", "data do pgto", "data de pagto", "data do pagto",
+    ]);
     const colValue = findSimilarColumn(debtorsHeader, 'valor');
     const colDueDate = findColumnNameByPatterns(debtorsHeader, ['data de vencimento', 'data vencimento']);
 
@@ -481,7 +506,7 @@ export async function processFiles(
     let completeDebtorPhoneIndices: number[] = [];
     let completeClientCpfCnpjIndices: number[] = [];
     let completeDebtorCpfCnpjIndices: number[] = [];
-    let completeDebtorDocumentIndices: number[] = [];
+    let completeDebtorDocumentIndex = -1;
     let completeClientFieldIndices = new Map<string, number>();
     let completeDebtorFieldIndices = new Map<string, number>();
     let completeExtraFieldIndices = new Map<string, number>();
@@ -530,7 +555,7 @@ export async function processFiles(
       completeDebtorPhoneIndices = findPhoneColumnIndices(debtorsHeader);
       completeClientCpfCnpjIndices = findCpfCnpjColumnIndices(clientsHeader);
       completeDebtorCpfCnpjIndices = findCpfCnpjColumnIndices(debtorsHeader);
-      completeDebtorDocumentIndices = findDocumentColumnIndices(debtorsHeader);
+      completeDebtorDocumentIndex = findDocumentColumnIndex(debtorsHeader);
       completeClientFieldIndices = new Map(
         COMPLETE_EXPORT_FIELDS.slice(1).map(field => [
           field.label,
@@ -667,8 +692,8 @@ export async function processFiles(
       const name = row[idxNameDebtors];
       
       // Filtro de Datas: Ignorar se houver Data de Baixa ou Data de Pagamento preenchida
-      const hasLowerDate = idxLowerDate !== -1 && row[idxLowerDate] !== undefined && row[idxLowerDate] !== null && String(row[idxLowerDate]).trim() !== "";
-      const hasPaymentDate = idxPaymentDate !== -1 && row[idxPaymentDate] !== undefined && row[idxPaymentDate] !== null && String(row[idxPaymentDate]).trim() !== "";
+      const hasLowerDate = idxLowerDate !== -1 && hasSettlementDate(row[idxLowerDate]);
+      const hasPaymentDate = idxPaymentDate !== -1 && hasSettlementDate(row[idxPaymentDate]);
 
       if (hasLowerDate || hasPaymentDate) {
         continue; // Pula essa linha (já descontada do total de extraídos/encontrados)
@@ -821,7 +846,11 @@ export async function processFiles(
             { length: maxSemDevedorPhoneCount },
             (_, index) => semDevedorPhones.get(normalizedName)?.[index] ?? "",
           ),
-          ...COMPLETE_EXPORT_FIELDS.slice(1).map(field => record.values.get(field.label) ?? ""),
+          ...COMPLETE_EXPORT_FIELDS.slice(1).map(field => (
+            ["Valor", "Vencimento", "Data da Venda"].includes(field.label)
+              ? ""
+              : (record.values.get(field.label) ?? "")
+          )),
           ...COMPLETE_EXTRA_GROUPS.map(group => record.values.get(group.label) ?? ""),
         ]);
         semDevedoresCompletaCount++;
@@ -918,12 +947,8 @@ export async function processFiles(
         const cpfCnpj = aggregateCellValues(debtorCpfCnpj, value => String(value).trim())
           || clientRecord?.values.get("CPF/CNPJ")
           || "";
-        const documentNumber = aggregateColumnsAcrossRows(group.rows, completeDebtorDocumentIndices)
-          || clientRecord?.values.get("Nº Documento")
-          || "";
-        const saleDate = aggregatedField("Data da Venda", saleDateIndex, formatDate)
-          || clientRecord?.values.get("Dt. Últ. Compra")
-          || "";
+        const documentNumber = aggregateColumnValues(group.rows, completeDebtorDocumentIndex);
+        const saleDate = aggregatedField("Data da Venda", saleDateIndex, formatDate);
         const debtorExtraValues = COMPLETE_EXTRA_GROUPS.map(groupField => {
           const clientValue = clientRecord?.values.get(groupField.label);
           if (hasCellValue(clientValue)) return clientValue;
