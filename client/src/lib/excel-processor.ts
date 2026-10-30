@@ -225,9 +225,9 @@ function findCpfCnpjColumnIndices(headers: string[]): number[] {
 function findDocumentColumnIndex(headers: string[]): number {
   const normalizedHeaders = Array.from(headers, header => normalizeText(header));
   const priorityPatterns = [
+    ["seu numero"],
     ["numero da nota fiscal", "numero nota fiscal", "numero da nota", "numero nota", "nf"],
     ["numero do documento", "numero documento", "num documento", "nro documento", "n do documento", "n documento"],
-    ["seu numero"],
     ["numero do titulo", "numero titulo", "num titulo", "nro titulo"],
     ["nota fiscal"],
     ["documento"],
@@ -244,9 +244,9 @@ function findDocumentColumnIndex(headers: string[]): number {
   // Fallbacks allow qualified headers such as "Seu Numero do Titulo" without
   // accidentally matching a document type like "Especie Documento".
   for (const pattern of [
-    "numero da nota fiscal", "numero nota fiscal", "numero da nota", "numero nota",
+    "seu numero", "numero da nota fiscal", "numero nota fiscal", "numero da nota", "numero nota",
     "numero do documento", "numero documento", "num documento", "nro documento", "n do documento",
-    "seu numero", "numero do titulo", "numero titulo", "nosso numero",
+    "numero do titulo", "numero titulo", "nosso numero",
   ]) {
     const index = normalizedHeaders.findIndex(header => header.includes(pattern));
     if (index !== -1) return index;
