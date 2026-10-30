@@ -3,8 +3,8 @@ name: Debtor export layout
 description: User requirements for the complete debtor-data spreadsheet.
 ---
 
-Only the “Devedores com dados” export may use the consolidated format: one row per debtor, unique phone numbers in separate columns, a total debt amount, and installment number, amount, and due date in separate columns. All other spreadsheet outputs must keep their existing format. Preserve support for every existing input format, especially XLS and XLSX.
+The “Devedores com dados” export has one row per debtor, unique phone columns, a total debt amount, and separate installment number, amount, and due-date columns. Both “Sem Devedores” exports keep one row per client and put unique phones in separate columns. “Simples” may repeat a debtor name once per unique phone; keep the detailed report unchanged. Preserve all existing input formats, especially XLS and XLSX.
 
-**Why:** The user explicitly limited the consolidated structure to the complete debtor export, agreed that installment amount and due date remain separate, and emphasized that both inputs must continue supporting XLS/XLSX and the other existing formats.
+**Why:** The user clarified that multiple phones belong in both no-debtor exports and in the simple export, while repeated names are allowed only in the simple export.
 
-**How to apply:** Preserve every other export and existing input format when changing this output; consolidate debtors by normalized name and deduplicate phone numbers.
+**How to apply:** Keep each export's row behavior distinct, deduplicate phone values, and do not alter the detailed report or existing input-format support unless explicitly requested.

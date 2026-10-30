@@ -685,22 +685,30 @@ export async function processFiles(
         const phone = phoneMap.get(normName);
         const value = idxValue !== -1 ? row[idxValue] : '';
         const dueDate = idxDueDate !== -1 ? formatDate(row[idxDueDate]) : '';
+        const availablePhones = uniquePhoneValues([
+          ...(completeClientRecords.get(normName)?.phones ?? []),
+          ...(phone ? [phone] : []),
+        ]);
+
+        if (availablePhones.length > 0 || !clientsFile) {
+          const simplePhones = availablePhones.length > 0 ? availablePhones : [""];
+          for (const simplePhone of simplePhones) {
+            const normalizedPhone = simplePhone ? phoneDeduplicationKey(simplePhone) : "sem-telefone";
+            const simpleKey = simplePhone ? normalizedPhone : normName;
+            if (!seenPhonesSimple.has(simpleKey)) {
+              resultData.push([name, simplePhone]);
+              seenPhonesSimple.add(simpleKey);
+              foundCount++;
+            }
+          }
+        } else {
+          resultData.push([name, ""]);
+        }
 
         if (phone || !clientsFile) {
-          // Normaliza os dados para comparação de duplicatas
+          // The detailed report keeps its existing one-phone-per-row behavior.
           const normalizedPhone = phone ? phone.replace(/\D/g, '') : 'sem-telefone';
-          
-          // Chave única para o relatório completo: Nome + Telefone (ou 'sem-telefone') + Data de Vencimento
           const entryKeyDetailed = `${normName}|${normalizedPhone}|${dueDate}`;
-          
-          // Lógica para Relatório Simples: Apenas um por telefone (ou nome se sem telefone)
-          const simpleKey = phone ? normalizedPhone : normName;
-          if (!seenPhonesSimple.has(simpleKey)) {
-            resultData.push([name, phone || '']);
-            seenPhonesSimple.add(simpleKey);
-            foundCount++;
-          }
-
           // Lógica para Relatório Completo: Permite duplicatas se a data de vencimento for diferente
           if (!seenEntriesDetailed.has(entryKeyDetailed)) {
             detailedData.push([name, phone || '', value, dueDate]);
@@ -708,12 +716,20 @@ export async function processFiles(
             foundDetailedCount++;
           }
         } else {
-          resultData.push([name, '']);
           detailedData.push([name, '', value, dueDate]);
           missingCount++;
         }
       }
     }
+
+    const semDevedorPhones = new Map<string, string[]>();
+    let maxSemDevedorPhoneCount = 1;
+    completeClientRecords.forEach((record, normalizedName) => {
+      if (debtorNamesSet.has(normalizedName)) return;
+      const phones = uniquePhoneValues(record.phones);
+      semDevedorPhones.set(normalizedName, phones);
+      maxSemDevedorPhoneCount = Math.max(maxSemDevedorPhoneCount, phones.length);
+    });
 
     // 5. Build "Sem Devedores" spreadsheet (clients NOT in debtors list, with extra columns)
     processingStage = "montagem da planilha sem devedores";
@@ -724,7 +740,18 @@ export async function processFiles(
       const idxNameClients = clientsHeader.indexOf(colNameClients);
 
       // Build header row: Nome + extra columns found
-      const semDevedoresHeader = ['Nome', ...extraColNames];
+      const foneHeaders = Array.from(
+        { length: maxSemDevedorPhoneCount },
+        (_, index) => index === 0 ? "FONE" : `FONE ${index + 1}`,
+      );
+      const semDevedoresHeader = ["Nome"];
+      for (const extraColumnName of extraColNames) {
+        if (extraColumnName === "FONE") {
+          semDevedoresHeader.push(...foneHeaders);
+        } else {
+          semDevedoresHeader.push(extraColumnName);
+        }
+      }
       const semDevedoresRows: any[][] = [semDevedoresHeader];
 
       const seenClientNames = new Set<string>();
@@ -743,12 +770,18 @@ export async function processFiles(
         if (seenClientNames.has(normName)) continue;
         seenClientNames.add(normName);
 
-        const extraValues = extraColIndices.map(idx => {
-          if (idx === -1) return '';
-          const val = row[idx];
-          if (val === undefined || val === null) return '';
-          return val;
-        });
+        const extraValues: any[] = [];
+        for (let extraIndex = 0; extraIndex < extraColIndices.length; extraIndex++) {
+          if (extraColNames[extraIndex] === "FONE") {
+            const phones = semDevedorPhones.get(normName) ?? [];
+            for (let phoneIndex = 0; phoneIndex < maxSemDevedorPhoneCount; phoneIndex++) {
+              extraValues.push(phones[phoneIndex] ?? "");
+            }
+            continue;
+          }
+          const columnIndex = extraColIndices[extraIndex];
+          extraValues.push(columnIndex === -1 ? "" : (row[columnIndex] ?? ""));
+        }
 
         semDevedoresRows.push([name, ...extraValues]);
         semDevedoresCount++;
@@ -768,9 +801,13 @@ export async function processFiles(
     let devedoresCompletosCount = 0;
 
     if (clientsDataRaw && completeClientNameIndex !== -1) {
+      const completeSemPhoneHeaders = Array.from(
+        { length: maxSemDevedorPhoneCount },
+        (_, index) => index === 0 ? "Telefone/WhatsApp" : `Telefone/WhatsApp ${index + 1}`,
+      );
       const completeHeaders = [
         COMPLETE_EXPORT_FIELDS[0].label,
-        "Telefone/WhatsApp",
+        ...completeSemPhoneHeaders,
         ...COMPLETE_EXPORT_FIELDS.slice(1).map(field => field.label),
         ...COMPLETE_EXTRA_GROUPS.map(group => group.label),
       ];
@@ -780,7 +817,10 @@ export async function processFiles(
         if (debtorNamesSet.has(normalizedName)) return;
         completeSemRows.push([
           record.name,
-          record.phones.join(" / "),
+          ...Array.from(
+            { length: maxSemDevedorPhoneCount },
+            (_, index) => semDevedorPhones.get(normalizedName)?.[index] ?? "",
+          ),
           ...COMPLETE_EXPORT_FIELDS.slice(1).map(field => record.values.get(field.label) ?? ""),
           ...COMPLETE_EXTRA_GROUPS.map(group => record.values.get(group.label) ?? ""),
         ]);
