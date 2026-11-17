@@ -10,6 +10,7 @@
     "build-deploy": "npm run build",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
+    "test:excel": "node --import tsx --test client/src/lib/excel-processor.test.ts",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {

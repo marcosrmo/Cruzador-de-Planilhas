@@ -7,6 +7,7 @@ interface FileUploadProps {
   description?: string;
   onFileSelect: (file: File | null) => void;
   accept?: string;
+  selectedFile?: File | null;
 }
 
 const SUPPORTED_SPREADSHEET_EXTENSIONS = [
@@ -33,9 +34,16 @@ const DEFAULT_ACCEPT = [
   ...Array.from(SUPPORTED_MIME_TYPES),
 ].join(",");
 
-export function FileUpload({ label, description, onFileSelect, accept = DEFAULT_ACCEPT }: FileUploadProps) {
+export function FileUpload({
+  label,
+  description,
+  onFileSelect,
+  accept = DEFAULT_ACCEPT,
+  selectedFile: controlledFile,
+}: FileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [localFile, setLocalFile] = useState<File | null>(null);
+  const selectedFile = controlledFile === undefined ? localFile : controlledFile;
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -62,6 +70,7 @@ export function FileUpload({ label, description, onFileSelect, accept = DEFAULT_
       const file = e.target.files[0];
       handleFile(file);
     }
+    e.currentTarget.value = "";
   }, []);
 
   const handleFile = (file: File) => {
@@ -71,7 +80,7 @@ export function FileUpload({ label, description, onFileSelect, accept = DEFAULT_
 
     // MIME types are inconsistent across browsers and file sources; accept either a known extension or MIME type.
     if (file && (hasSupportedExtension || hasSupportedMimeType)) {
-      setSelectedFile(file);
+      setLocalFile(file);
       onFileSelect(file);
     } else {
       alert(`Formato não suportado. Use uma planilha Excel ou arquivo compatível: ${SUPPORTED_SPREADSHEET_EXTENSIONS.join(", ")}`);
@@ -80,7 +89,7 @@ export function FileUpload({ label, description, onFileSelect, accept = DEFAULT_
 
   const removeFile = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setSelectedFile(null);
+    setLocalFile(null);
     onFileSelect(null);
   };
 
@@ -96,7 +105,7 @@ export function FileUpload({ label, description, onFileSelect, accept = DEFAULT_
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           className={cn(
-            "relative border-2 border-dashed rounded-xl p-8 transition-all duration-200 ease-in-out text-center cursor-pointer group hover:border-primary/50 hover:bg-primary/5",
+            "relative border-2 border-dashed rounded-xl p-6 sm:p-8 transition-all duration-200 ease-in-out text-center cursor-pointer group hover:border-primary/50 hover:bg-primary/5 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 focus-within:ring-offset-slate-900",
             isDragging ? "border-primary bg-primary/10" : "border-slate-700 bg-slate-800/50"
           )}
         >
@@ -105,6 +114,7 @@ export function FileUpload({ label, description, onFileSelect, accept = DEFAULT_
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             onChange={handleFileInput}
             accept={accept}
+            aria-label={label}
           />
           <div className="flex flex-col items-center justify-center space-y-3">
             <div className="p-3 bg-slate-800 rounded-full shadow-sm ring-1 ring-slate-700 group-hover:scale-110 transition-transform duration-200 group-hover:bg-slate-700">

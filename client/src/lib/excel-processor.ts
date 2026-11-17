@@ -152,7 +152,7 @@ function formatDate(value: any): string {
 const SEM_DEVEDORES_GROUPS: { label: string; patterns: string[] }[] = [
   { label: "CNPJ/CPF",        patterns: ["cnpj/cpf", "cnpj cpf", "cnpj", "cpf"] },
   { label: "CIDADE",           patterns: ["cidade", "municipio"] },
-  { label: "FONE",             patterns: ["fone", "telefone", "phone"] },
+  { label: "Telefone",         patterns: ["fone", "telefone", "phone"] },
   { label: "LOGRADOURO",       patterns: ["logradouro", "endereco", "enderec", "endereço", "rua", "logr"] },
   { label: "N",                patterns: ["numero", "num", "n"] },
   { label: "BAIRRO",           patterns: ["bairro"] },
@@ -171,13 +171,13 @@ const COMPLETE_EXPORT_FIELDS: { label: string; patterns: string[] }[] = [
   { label: "Vencimento", patterns: ["data de vencimento", "data vencimento", "vencimento"] },
   { label: "Nº Parcela", patterns: ["numero da parcela", "numero parcela", "num parcela", "nro parcela", "n parcela", "parcela atual", "parcela"] },
   { label: "Total de Parcelas", patterns: ["total de parcelas", "total parcelas", "parcelas total", "quantidade de parcelas", "qtd parcelas"] },
-  { label: "Nº Documento", patterns: ["numero do documento", "numero documento", "num documento", "nro documento", "n documento", "documento"] },
+  { label: "Nota Fiscal", patterns: ["numero da nota fiscal", "numero nota fiscal", "nota fiscal", "numero da nota", "numero nota", "numero do documento", "numero documento", "num documento", "nro documento", "seu numero", "nosso numero", "documento"] },
   { label: "Descrição", patterns: ["descricao", "historico", "detalhe", "observacao", "observacoes", "desc"] },
   { label: "Data da Venda", patterns: ["data da venda", "data de venda", "data venda", "data ultima venda", "dt da venda", "dt venda", "dt ult venda"] },
 ];
 
 const COMPLETE_EXTRA_GROUPS = SEM_DEVEDORES_GROUPS.filter(
-  group => !["CNPJ/CPF", "FONE", "Descrição"].includes(group.label)
+  group => !["CNPJ/CPF", "Telefone", "Descrição"].includes(group.label)
 );
 
 function findColumnIndexByPatterns(headers: string[], patterns: string[]): number {
@@ -206,7 +206,7 @@ function findColumnNameByPatterns(headers: string[], patterns: string[]): string
 }
 
 function findPhoneColumnIndices(headers: string[]): number[] {
-  const phoneTerms = ["telefone", "fone", "celular", "whatsapp", "whats", "phone"];
+  const phoneTerms = ["telefone", "fone", "celular", "whatsapp", "whats", "phone", "fax"];
   return headers.reduce<number[]>((indices, header, index) => {
     const normalized = normalizeText(header);
     if (phoneTerms.some(term => normalized.includes(term))) indices.push(index);
@@ -222,37 +222,69 @@ function findCpfCnpjColumnIndices(headers: string[]): number[] {
   }, []);
 }
 
-function findDocumentColumnIndex(headers: string[]): number {
-  const normalizedHeaders = Array.from(headers, header => normalizeText(header));
+function findDocumentColumnIndices(headers: string[]): number[] {
   const priorityPatterns = [
+    ["numero da nota fiscal", "numero nota fiscal", "nota fiscal", "numero da nota", "numero nota"],
     ["seu numero"],
-    ["numero da nota fiscal", "numero nota fiscal", "numero da nota", "numero nota", "nf"],
     ["numero do documento", "numero documento", "num documento", "nro documento", "n do documento", "n documento"],
     ["numero do titulo", "numero titulo", "num titulo", "nro titulo"],
-    ["nota fiscal"],
-    ["documento"],
     ["nosso numero"],
+    ["nf", "documento"],
   ];
 
-  for (const patterns of priorityPatterns) {
-    for (const pattern of patterns) {
-      const index = normalizedHeaders.findIndex(header => header === pattern);
-      if (index !== -1) return index;
-    }
-  }
+  return headers
+    .map((header, index) => {
+      const normalized = normalizeText(header);
+      if (!normalized || normalized.includes("cpf") || normalized.includes("cnpj")) return null;
+      if (normalized.includes("especie") || normalized.includes("tipo")) return null;
 
-  // Fallbacks allow qualified headers such as "Seu Numero do Titulo" without
-  // accidentally matching a document type like "Especie Documento".
-  for (const pattern of [
-    "seu numero", "numero da nota fiscal", "numero nota fiscal", "numero da nota", "numero nota",
-    "numero do documento", "numero documento", "num documento", "nro documento", "n do documento",
-    "numero do titulo", "numero titulo", "nosso numero",
-  ]) {
-    const index = normalizedHeaders.findIndex(header => header.includes(pattern));
-    if (index !== -1) return index;
-  }
+      const priority = priorityPatterns.findIndex(patterns =>
+        patterns.some(pattern => (
+          pattern.length <= 2
+            ? normalized === pattern
+            : normalized === pattern || normalized.includes(pattern)
+        ))
+      );
+      return priority === -1 ? null : { index, priority };
+    })
+    .filter((candidate): candidate is { index: number; priority: number } => candidate !== null)
+    .sort((a, b) => a.priority - b.priority || a.index - b.index)
+    .map(candidate => candidate.index);
+}
 
-  return -1;
+function chooseShortestDocumentValue(values: any[]): string {
+  const candidates = values
+    .filter(hasCellValue)
+    .map(value => String(value).trim())
+    .filter(Boolean);
+  if (!candidates.length) return "";
+
+  return candidates
+    .map((value, order) => ({
+      value,
+      digitCount: value.replace(/\D/g, "").length || value.replace(/\s/g, "").length,
+      order,
+    }))
+    .sort((a, b) => a.digitCount - b.digitCount || a.order - b.order)[0].value;
+}
+
+function selectShortestDocumentValue(rows: any[][], indices: number[]): string {
+  return chooseShortestDocumentValue(
+    indices.flatMap(index => rows.map(row => row?.[index])),
+  );
+}
+
+function findUnmappedDataColumnIndices(
+  headers: string[],
+  excludedIndices: number[],
+  rows: any[][],
+): number[] {
+  const excluded = new Set(excludedIndices.filter(index => index >= 0));
+  return headers.reduce<number[]>((indices, header, index) => {
+    if (excluded.has(index) || !hasCellValue(header)) return indices;
+    if (rows.some(row => hasCellValue(row?.[index]))) indices.push(index);
+    return indices;
+  }, []);
 }
 
 function hasCellValue(value: any): boolean {
@@ -503,10 +535,12 @@ export async function processFiles(
     let extraColNames: string[] = [];
     let completeClientNameIndex = -1;
     let completeClientPhoneIndices: number[] = [];
-    let completeDebtorPhoneIndices: number[] = [];
+    let completeDebtorPhoneIndices = findPhoneColumnIndices(debtorsHeader);
     let completeClientCpfCnpjIndices: number[] = [];
     let completeDebtorCpfCnpjIndices: number[] = [];
-    let completeDebtorDocumentIndex = -1;
+    let completeClientDocumentIndices: number[] = [];
+    let completeDebtorDocumentIndices: number[] = [];
+    let completeDebtorRawFieldIndices: number[] = [];
     let completeClientFieldIndices = new Map<string, number>();
     let completeDebtorFieldIndices = new Map<string, number>();
     let completeExtraFieldIndices = new Map<string, number>();
@@ -515,6 +549,7 @@ export async function processFiles(
       name: any;
       phones: string[];
       seenPhones: Set<string>;
+      documents: any[];
       values: Map<string, any>;
     }>();
 
@@ -552,10 +587,10 @@ export async function processFiles(
       processingStage = "mapeamento dos campos completos";
       completeClientNameIndex = findColumnIndexByPatterns(clientsHeader, COMPLETE_EXPORT_FIELDS[0].patterns);
       completeClientPhoneIndices = findPhoneColumnIndices(clientsHeader);
-      completeDebtorPhoneIndices = findPhoneColumnIndices(debtorsHeader);
       completeClientCpfCnpjIndices = findCpfCnpjColumnIndices(clientsHeader);
       completeDebtorCpfCnpjIndices = findCpfCnpjColumnIndices(debtorsHeader);
-      completeDebtorDocumentIndex = findDocumentColumnIndex(debtorsHeader);
+      completeClientDocumentIndices = findDocumentColumnIndices(clientsHeader);
+      completeDebtorDocumentIndices = findDocumentColumnIndices(debtorsHeader);
       completeClientFieldIndices = new Map(
         COMPLETE_EXPORT_FIELDS.slice(1).map(field => [
           field.label,
@@ -580,6 +615,22 @@ export async function processFiles(
           findColumnIndexByPatterns(debtorsHeader, group.patterns),
         ])
       );
+      completeDebtorRawFieldIndices = findUnmappedDataColumnIndices(
+        debtorsHeader,
+        [
+          idxNameDebtors,
+          idxLowerDate,
+          idxPaymentDate,
+          idxValue,
+          idxDueDate,
+          ...completeDebtorPhoneIndices,
+          ...completeDebtorCpfCnpjIndices,
+          ...completeDebtorDocumentIndices,
+          ...Array.from(completeDebtorFieldIndices.values()),
+          ...Array.from(completeDebtorExtraFieldIndices.values()),
+        ],
+        debtorsDataRaw.slice(1),
+      );
 
       if (completeClientNameIndex !== -1) {
         processingStage = "indexação dos registros completos da base de clientes";
@@ -591,7 +642,7 @@ export async function processFiles(
           const normalizedName = normalizeText(name);
           let record = completeClientRecords.get(normalizedName);
           if (!record) {
-            record = { name, phones: [], seenPhones: new Set<string>(), values: new Map<string, any>() };
+            record = { name, phones: [], seenPhones: new Set<string>(), documents: [], values: new Map<string, any>() };
             completeClientRecords.set(normalizedName, record);
           }
 
@@ -605,8 +656,12 @@ export async function processFiles(
             }
           }
 
+          for (const documentIndex of completeClientDocumentIndices) {
+            if (hasCellValue(row[documentIndex])) record.documents.push(row[documentIndex]);
+          }
+
           completeClientFieldIndices.forEach((columnIndex, label) => {
-            if (columnIndex === -1 || label === "CPF/CNPJ" || record.values.has(label)) return;
+            if (columnIndex === -1 || label === "CPF/CNPJ" || label === "Nota Fiscal" || record.values.has(label)) return;
             const value = row[columnIndex];
             if (hasCellValue(value)) record.values.set(label, value);
           });
@@ -686,6 +741,7 @@ export async function processFiles(
     // Build set of debtor names (normalized) for filtering clients
     const debtorNamesSet = new Set<string>();
     const activeDebtorRows: { row: any[]; name: any; normalizedName: string }[] = [];
+    const settledPhonesByName = new Map<string, string[]>();
 
     for (let i = 1; i < debtorsDataRaw.length; i++) {
       const row = debtorsDataRaw[i];
@@ -696,6 +752,16 @@ export async function processFiles(
       const hasPaymentDate = idxPaymentDate !== -1 && hasSettlementDate(row[idxPaymentDate]);
 
       if (hasLowerDate || hasPaymentDate) {
+        if (hasCellValue(name)) {
+          const normalizedName = normalizeText(name);
+          settledPhonesByName.set(
+            normalizedName,
+            uniquePhoneValues([
+              ...(settledPhonesByName.get(normalizedName) ?? []),
+              ...completeDebtorPhoneIndices.map(index => row[index]),
+            ]),
+          );
+        }
         continue; // Pula essa linha (já descontada do total de extraídos/encontrados)
       }
       
@@ -747,11 +813,49 @@ export async function processFiles(
       }
     }
 
+    if (!clientsFile) {
+      const extractionPhones = activeDebtorRows.map(debtor => uniquePhoneValues(
+        completeDebtorPhoneIndices.map(index => debtor.row[index]),
+      ));
+      const maxExtractionPhoneCount = extractionPhones.reduce(
+        (max, phones) => Math.max(max, phones.length),
+        0,
+      );
+      const extractionRows: any[][] = [[
+        "Nome",
+        ...Array.from({ length: maxExtractionPhoneCount }, (_, index) => `Telefone ${index + 1}`),
+        "Valor",
+        "Data de Vencimento",
+      ]];
+      const seenExtractionRows = new Set<string>();
+
+      activeDebtorRows.forEach((debtor, index) => {
+        const phones = extractionPhones[index];
+        const value = idxValue !== -1 ? debtor.row[idxValue] : "";
+        const dueDate = idxDueDate !== -1 ? formatDate(debtor.row[idxDueDate]) : "";
+        const key = `${debtor.normalizedName}|${phones.map(phoneDeduplicationKey).join(",")}|${dueDate}`;
+        if (seenExtractionRows.has(key)) return;
+        seenExtractionRows.add(key);
+        extractionRows.push([
+          debtor.name,
+          ...Array.from({ length: maxExtractionPhoneCount }, (_, phoneIndex) => phones[phoneIndex] ?? ""),
+          value,
+          dueDate,
+        ]);
+      });
+
+      detailedData.splice(0, detailedData.length, ...extractionRows);
+      foundDetailedCount = extractionRows.length - 1;
+    }
+
     const semDevedorPhones = new Map<string, string[]>();
-    let maxSemDevedorPhoneCount = 1;
+    let maxSemDevedorPhoneCount = 0;
     completeClientRecords.forEach((record, normalizedName) => {
       if (debtorNamesSet.has(normalizedName)) return;
-      const phones = uniquePhoneValues(record.phones);
+      const phones = uniquePhoneValues([
+        ...record.phones,
+        ...(settledPhonesByName.get(normalizedName) ?? []),
+      ]);
       semDevedorPhones.set(normalizedName, phones);
       maxSemDevedorPhoneCount = Math.max(maxSemDevedorPhoneCount, phones.length);
     });
@@ -767,11 +871,11 @@ export async function processFiles(
       // Build header row: Nome + extra columns found
       const foneHeaders = Array.from(
         { length: maxSemDevedorPhoneCount },
-        (_, index) => index === 0 ? "FONE" : `FONE ${index + 1}`,
+        (_, index) => `Telefone ${index + 1}`,
       );
       const semDevedoresHeader = ["Nome"];
       for (const extraColumnName of extraColNames) {
-        if (extraColumnName === "FONE") {
+        if (extraColumnName === "Telefone") {
           semDevedoresHeader.push(...foneHeaders);
         } else {
           semDevedoresHeader.push(extraColumnName);
@@ -797,7 +901,7 @@ export async function processFiles(
 
         const extraValues: any[] = [];
         for (let extraIndex = 0; extraIndex < extraColIndices.length; extraIndex++) {
-          if (extraColNames[extraIndex] === "FONE") {
+          if (extraColNames[extraIndex] === "Telefone") {
             const phones = semDevedorPhones.get(normName) ?? [];
             for (let phoneIndex = 0; phoneIndex < maxSemDevedorPhoneCount; phoneIndex++) {
               extraValues.push(phones[phoneIndex] ?? "");
@@ -828,7 +932,7 @@ export async function processFiles(
     if (clientsDataRaw && completeClientNameIndex !== -1) {
       const completeSemPhoneHeaders = Array.from(
         { length: maxSemDevedorPhoneCount },
-        (_, index) => index === 0 ? "Telefone/WhatsApp" : `Telefone/WhatsApp ${index + 1}`,
+        (_, index) => `Telefone ${index + 1}`,
       );
       const completeHeaders = [
         COMPLETE_EXPORT_FIELDS[0].label,
@@ -849,6 +953,8 @@ export async function processFiles(
           ...COMPLETE_EXPORT_FIELDS.slice(1).map(field => (
             ["Valor", "Vencimento", "Data da Venda"].includes(field.label)
               ? ""
+              : field.label === "Nota Fiscal"
+                ? chooseShortestDocumentValue(record.documents)
               : (record.values.get(field.label) ?? "")
           )),
           ...COMPLETE_EXTRA_GROUPS.map(group => record.values.get(group.label) ?? ""),
@@ -868,7 +974,7 @@ export async function processFiles(
 
       const groupedDebtors = Array.from(debtorGroups.entries());
       const phonesByDebtor = new Map<string, string[]>();
-      let maxPhoneColumns = 1;
+      let maxPhoneColumns = 0;
       let maxInstallmentColumns = 0;
       for (const [normalizedName, group] of groupedDebtors) {
         const debtorPhoneValues = group.rows.reduce<any[]>((values, row) => {
@@ -886,14 +992,14 @@ export async function processFiles(
 
       const phoneHeaders = Array.from(
         { length: maxPhoneColumns },
-        (_, index) => `Telefone/WhatsApp ${index + 1}`,
+        (_, index) => `Telefone ${index + 1}`,
       );
       const installmentHeaders: string[] = [];
       for (let index = 1; index <= maxInstallmentColumns; index++) {
         installmentHeaders.push(
-          `Parcela ${index} - Nº da Parcela`,
-          `Parcela ${index} - Valor`,
-          `Parcela ${index} - Vencimento`,
+          `Vencimento ${index}`,
+          `Valor ${index}`,
+          `Nº da Parcela ${index}`,
         );
       }
 
@@ -904,10 +1010,11 @@ export async function processFiles(
         "CPF/CNPJ",
         "Valor Total da Dívida",
         "Total de Parcelas",
-        "Nº Documento",
+        "Nota Fiscal",
         "Descrição",
         "Data da Venda",
         ...COMPLETE_EXTRA_GROUPS.map(group => group.label),
+        ...completeDebtorRawFieldIndices.map(index => String(debtorsHeader[index] ?? "").trim()),
         ...installmentHeaders,
       ];
       const completeDebtorRows: any[][] = [completeDebtorHeaders];
@@ -947,7 +1054,7 @@ export async function processFiles(
         const cpfCnpj = aggregateCellValues(debtorCpfCnpj, value => String(value).trim())
           || clientRecord?.values.get("CPF/CNPJ")
           || "";
-        const documentNumber = aggregateColumnValues(group.rows, completeDebtorDocumentIndex);
+        const documentNumber = selectShortestDocumentValue(group.rows, completeDebtorDocumentIndices);
         const saleDate = aggregatedField("Data da Venda", saleDateIndex, formatDate);
         const debtorExtraValues = COMPLETE_EXTRA_GROUPS.map(groupField => {
           const clientValue = clientRecord?.values.get(groupField.label);
@@ -970,7 +1077,7 @@ export async function processFiles(
           const dueDate = installmentDueDateIndex >= 0
             ? formatDate(row[installmentDueDateIndex])
             : "";
-          installmentValues.push(originalInstallmentNumber, installmentValue, dueDate);
+          installmentValues.push(dueDate, installmentValue, originalInstallmentNumber);
         }
 
         completeDebtorRows.push([
@@ -984,6 +1091,7 @@ export async function processFiles(
           aggregatedField("Descrição", descriptionIndex),
           saleDate,
           ...debtorExtraValues,
+          ...completeDebtorRawFieldIndices.map(index => aggregateColumnValues(group.rows, index)),
           ...installmentValues,
         ]);
       }

@@ -2,8 +2,8 @@ import { useState } from "react";
 import { FileUpload } from "@/components/file-upload";
 import { Button } from "@/components/ui/button";
 import { processFiles } from "@/lib/excel-processor";
-import { Download, Loader2, CheckCircle, Smartphone, Instagram, Wrench, Users } from "lucide-react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Download, Loader2, CheckCircle, Smartphone, Instagram, Wrench, Users, ShieldCheck } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import logoImg from "@/assets/logo.png";
 
@@ -161,130 +161,56 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#1a1138] py-12 px-4 sm:px-6 lg:px-8 font-sans relative overflow-hidden">
-      {/* Abstract Background Blobs */}
-      <div className="absolute top-0 left-0 w-96 h-96 bg-blue-900/20 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-900/20 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 pointer-events-none" />
-      <div className="absolute top-1/2 left-1/2 w-[500px] h-[500px] bg-red-900/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
-
-      <div className="max-w-4xl mx-auto space-y-10 relative z-10">
-        
-        {/* Header */}
-        <div className="text-center space-y-3">
-          <div className="inline-block mb-2">
-            <img src={logoImg} alt="Logo" className="w-20 h-20 rounded-2xl shadow-lg shadow-purple-500/20 object-cover" />
+    <div className="relative min-h-screen overflow-hidden bg-[#0b1220] px-4 py-7 font-sans text-slate-100 sm:px-6 sm:py-10 lg:px-8">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-96 bg-[radial-gradient(ellipse_at_top,_rgba(37,99,235,0.18),_transparent_65%)]" />
+      <div className="relative mx-auto max-w-6xl space-y-7 sm:space-y-9">
+        <header className="flex flex-col gap-5 border-b border-white/10 pb-7 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <img
+              src={logoImg}
+              alt="Cruzador de Planilhas"
+              className="h-14 w-14 shrink-0 rounded-2xl object-cover shadow-lg shadow-blue-950/40 sm:h-16 sm:w-16"
+            />
+            <div>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">Organização de cobranças</p>
+              <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">Cruzador de Planilhas</h1>
+              <p className="mt-1 max-w-2xl text-sm leading-relaxed text-slate-300 sm:text-base">
+                Cruze sua base de clientes com a lista de débitos e gere os dois arquivos finais sem duplicidade.
+              </p>
+            </div>
           </div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-red-400 sm:text-5xl drop-shadow-sm pb-1">
-            Cruzador de Planilhas
-          </h1>
-          <p className="text-lg text-red-300 max-w-2xl mx-auto font-medium">
-            Ferramenta profissional para automação de busca de dados. Cruze bases de clientes e devedores em segundos.
-          </p>
-        </div>
+          <div className="flex w-fit items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-xs font-medium text-emerald-200">
+            <ShieldCheck className="h-4 w-4 shrink-0" />
+            Arquivos processados no navegador
+          </div>
+        </header>
 
-        <div className="space-y-10">
-          {/* Section 1: Extraction (Above) */}
-          <Card className="border border-amber-500/50 shadow-2xl shadow-amber-900/20 bg-slate-900/80 backdrop-blur-xl ring-1 ring-white/5 transition-all duration-300">
-            <CardHeader className="border-b border-white/5 pb-6">
-              <div className="flex items-center gap-2 text-amber-400 font-bold text-lg mb-1">
-                <Wrench className="w-5 h-5" />
-                <span>EXTRAIR DEVEDORES</span>
-              </div>
-              <CardTitle className="text-white text-xl">Filtragem e Extração</CardTitle>
-              <CardDescription className="text-slate-300 text-sm">
-                Esta seção apenas filtra quem já pagou e extrai os devedores e os gera em uma nova planilha. Não requer a base completa.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-6 space-y-4">
-              <FileUpload 
-                label="Planilha de Devedores (Somente para Extração)" 
-                description="Arquivo com os nomes para filtrar baixa/pagamento."
-                onFileSelect={(file) => {
-                  setDebtorsFile(file);
-                  setExtractionResult(null);
-                }}
-              />
-              {isProcessingExtraction && (
-                <div className="flex flex-col items-center justify-center py-4 space-y-2 animate-in fade-in zoom-in duration-300">
-                  <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
-                  <p className="text-white font-medium">Extraindo dados...</p>
-                </div>
-              )}
-              {extractionResult && (
-                <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-4 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-slate-800/80 p-3 rounded-lg border border-white/10 text-center shadow-lg">
-                      <div className="text-2xl font-bold text-white">{extractionResult.stats.total}</div>
-                      <div className="text-[10px] text-slate-300 uppercase font-bold tracking-wider mt-1">Total de Linhas</div>
-                    </div>
-                    <div className="bg-slate-800/80 p-3 rounded-lg border border-purple-500/30 text-center relative overflow-hidden shadow-lg shadow-purple-900/10">
-                      <div className="absolute inset-0 bg-purple-500/5"></div>
-                      <div className="text-2xl font-bold text-purple-400 relative">{extractionResult.stats.foundDetailed}</div>
-                      <div className="text-[10px] text-purple-200 uppercase font-bold tracking-wider mt-1 relative">Devedores Extraídos</div>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <Button 
-                      size="sm" 
-                      onClick={() => downloadFile(extractionResult, 'detailed')} 
-                      className="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold h-10"
-                      data-testid="button-download-extraction"
-                    >
-                      <Download className="mr-2 h-4 w-4" /> Baixar Relatório Extraído
-                    </Button>
-                  </div>
-                </div>
-              )}
-              {!extractionResult && !isProcessingExtraction && (
-                <Button 
-                  size="sm" 
-                  onClick={handleProcessExtraction} 
-                  disabled={isProcessingExtraction || !debtorsFile}
-                  className="w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white border-0 shadow-lg shadow-amber-900/30 font-bold h-10 transition-all duration-300 hover:scale-[1.02] text-base"
-                  data-testid="button-extract-debtors"
-                >
-                  Extrair devedores
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Section 2: Crossing (Below - Original Layout) */}
-          <Card className="border border-white/10 shadow-2xl bg-slate-900/80 backdrop-blur-xl ring-1 ring-white/5 transition-all duration-300">
-            <CardHeader className="border-b border-white/5 pb-6">
-              <div className="flex items-center gap-2 text-red-400 font-bold text-lg mb-1">
-                <Smartphone className="w-5 h-5" />
-                <span>CRUZAR PLANILHAS E ADICIONAR TELEFONES</span>
-              </div>
-              <CardTitle className="text-white text-xl">Upload de Bases</CardTitle>
-              <CardDescription className="text-slate-300 text-sm">
-                Selecione as duas planilhas para localizar os telefones na base completa.
-              </CardDescription>
-              <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-                <div className="flex items-start gap-2 bg-green-950/30 border border-green-500/20 rounded-lg p-3">
-                  <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
-                  <span className="text-green-200 text-xs font-medium">Adiciona telefones da base geral na lista de devedores</span>
-                </div>
-                <div className="flex items-start gap-2 bg-amber-950/30 border border-amber-500/20 rounded-lg p-3">
-                  <CheckCircle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
-                  <span className="text-amber-200 text-xs font-medium">Gera relatório completo com valor e data de vencimento</span>
-                </div>
-                <div className="flex items-start gap-2 bg-blue-950/30 border border-blue-500/20 rounded-lg p-3">
-                  <CheckCircle className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
-                  <span className="text-blue-200 text-xs font-medium">Baixa planilha sem devedores com endereço, CPF, CNPJ e mais</span>
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+          <main className="min-w-0 space-y-6">
+          {/* Main workflow */}
+          <Card className="border border-white/10 bg-slate-900/80 shadow-2xl shadow-black/20 backdrop-blur-xl">
+            <CardHeader className="border-b border-white/10 pb-5">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-blue-400/20 bg-blue-400/10 text-sm font-bold text-blue-200">01</div>
+                <div>
+                  <CardTitle className="text-xl text-white sm:text-2xl">Cruzar planilhas</CardTitle>
+                  <CardDescription className="mt-1 text-sm leading-relaxed text-slate-300">
+                    Envie as duas bases. A ferramenta separa débitos em aberto de clientes pagos ou sem dívida.
+                  </CardDescription>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="pt-6 space-y-6">
-              <div className="grid md:grid-cols-2 gap-8">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-blue-300 font-bold text-lg">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/40 text-sm">1</div>
-                    <span>Base Completa</span>
+            <CardContent className="space-y-6 pt-6">
+              <div className="grid gap-5 md:grid-cols-2">
+                <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-950/40 p-4 sm:p-5">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-blue-200">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-400/15 text-xs">1</span>
+                    Base de clientes
                   </div>
-                  <FileUpload 
-                    label="Planilha Geral" 
-                    description="Arquivo contendo Nome e Telefone de todos os clientes."
+                  <FileUpload
+                    label="Planilha geral"
+                    description="Inclua nomes, telefones e os demais dados dos clientes."
+                    selectedFile={clientsFile}
                     onFileSelect={(file) => {
                       setClientsFile(file);
                       setCrossingResult(null);
@@ -292,211 +218,246 @@ export default function Home() {
                   />
                 </div>
 
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-red-300 font-bold text-lg">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-red-500/20 border border-red-500/40 text-sm">2</div>
-                    <span>Lista de Devedores</span>
+                <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-950/40 p-4 sm:p-5">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-rose-200">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-rose-400/15 text-xs">2</span>
+                    Base de débitos
                   </div>
-                  <FileUpload 
-                    label="Planilha de Nomes" 
-                    description="Arquivo com os nomes que vem do banco, do jeito que ele vem do banco."
+                  <FileUpload
+                    label="Planilha de devedores"
+                    description="Use a lista do banco com valores, vencimentos e datas de baixa ou pagamento."
+                    selectedFile={debtorsFile}
                     onFileSelect={(file) => {
                       setDebtorsFile(file);
                       setCrossingResult(null);
+                      setExtractionResult(null);
                     }}
                   />
                 </div>
               </div>
 
-              {isProcessingCrossing && (
-                <div className="flex flex-col items-center justify-center py-4 space-y-2 animate-in fade-in zoom-in duration-300">
-                  <Loader2 className="h-10 w-10 animate-spin text-red-500" />
-                  <p className="text-white font-semibold">Cruzando dados...</p>
+              {isProcessingCrossing ? (
+                <div role="status" className="flex flex-col items-center justify-center gap-3 rounded-xl border border-blue-400/20 bg-blue-400/5 py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-300" />
+                  <p className="font-medium text-white">Conferindo nomes, pagamentos e telefones...</p>
+                  <p className="text-xs text-slate-400">Planilhas grandes podem levar alguns segundos.</p>
                 </div>
-              )}
+              ) : null}
 
-              {crossingResult && (
-                <div className="space-y-4">
-                  <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-6 space-y-4">
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-                      <div className="bg-slate-800/80 p-3 rounded-lg border border-white/10 text-center">
-                        <div className="text-xl font-bold text-white" data-testid="stat-total">{crossingResult.stats.total}</div>
-                        <div className="text-[10px] text-slate-300 uppercase font-bold mt-1">Total</div>
-                      </div>
-                      <div className="bg-slate-800/80 p-3 rounded-lg border border-green-500/30 text-center">
-                        <div className="text-xl font-bold text-green-400" data-testid="stat-found">{crossingResult.stats.found}</div>
-                        <div className="text-[10px] text-green-200 uppercase font-bold mt-1">Simples</div>
-                      </div>
-                      <div className="bg-slate-800/80 p-3 rounded-lg border border-amber-500/30 text-center">
-                        <div className="text-xl font-bold text-amber-400" data-testid="stat-found-detailed">{crossingResult.stats.foundDetailed}</div>
-                        <div className="text-[10px] text-amber-200 uppercase font-bold mt-1">Detalhado</div>
-                      </div>
-                      <div className="bg-slate-800/80 p-3 rounded-lg border border-purple-500/30 text-center">
-                        <div className="text-xl font-bold text-purple-400" data-testid="stat-found-detailed-2">{crossingResult.stats.foundDetailed}</div>
-                        <div className="text-[10px] text-purple-200 uppercase font-bold mt-1">Extraídos</div>
-                      </div>
-                      <div className="bg-slate-800/80 p-3 rounded-lg border border-red-500/30 text-center">
-                        <div className="text-xl font-bold text-red-400" data-testid="stat-missing">{crossingResult.stats.missing}</div>
-                        <div className="text-[10px] text-red-200 uppercase font-bold mt-1">Pendentes</div>
-                      </div>
+              {crossingResult ? (
+                <div className="space-y-5 border-t border-white/10 pt-6">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300">Processamento concluído</p>
+                      <h2 className="mt-1 text-lg font-bold text-white">Seus arquivos finais</h2>
                     </div>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <Button
-                        onClick={() => downloadFile(crossingResult, 'simple')}
-                        className="flex-1 bg-green-600 hover:bg-green-500 font-bold"
-                        data-testid="button-download-simple"
-                      >
-                        <Download className="mr-2 h-4 w-4" /> Baixar Simples
-                      </Button>
-                      <Button
-                        onClick={() => downloadFile(crossingResult, 'detailed')}
-                        className="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold"
-                        data-testid="button-download-detailed"
-                      >
-                        <Download className="mr-2 h-4 w-4" /> Baixar Relatório Completo
-                      </Button>
+                    <p className="text-sm text-slate-400">Uma planilha por grupo, sem botões repetidos.</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="rounded-xl border border-rose-400/20 bg-rose-400/[0.06] p-4">
+                      <p className="text-xs font-medium text-rose-200">Devedores em aberto</p>
+                      <p className="mt-1 text-2xl font-bold text-white" data-testid="stat-debtors">
+                        {crossingResult.stats.devedoresCompletos ?? 0}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-blue-400/20 bg-blue-400/[0.06] p-4">
+                      <p className="text-xs font-medium text-blue-200">Sem dívida ativa</p>
+                      <p className="mt-1 text-2xl font-bold text-white" data-testid="stat-no-debt">
+                        {crossingResult.stats.semDevedoresCompleta ?? 0}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] p-4">
+                      <p className="text-xs font-medium text-emerald-200">Telefones localizados</p>
+                      <p className="mt-1 text-2xl font-bold text-white" data-testid="stat-phones">
+                        {crossingResult.stats.found}
+                      </p>
                     </div>
                   </div>
 
-                  {/* New: Sem Devedores Download */}
-                  {crossingResult.semDevedoresData && (
-                    <div className="rounded-xl border border-blue-500/40 bg-blue-950/30 p-5 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Users className="w-5 h-5 text-blue-400 shrink-0" />
-                        <div>
-                          <p className="text-blue-200 font-bold text-sm">Planilha Sem Devedores</p>
-                          <p className="text-blue-300/70 text-xs">
-                            Clientes da base geral que <strong className="text-blue-200">não estão</strong> na lista de devedores
-                            {crossingResult.stats.semDevedores !== undefined && (
-                              <> — <span className="text-blue-100 font-bold">{crossingResult.stats.semDevedores}</span> registros</>
-                            )}
-                          </p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {crossingResult.devedoresCompletaData ? (
+                      <div className="flex min-h-40 flex-col justify-between gap-4 rounded-2xl border border-rose-400/25 bg-rose-400/[0.06] p-5">
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-400/15 text-rose-200">
+                            <Users className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-white">Devedores</h3>
+                            <p className="mt-1 text-sm leading-relaxed text-slate-300">
+                              Apenas débitos sem data de baixa ou pagamento, com telefones e vencimentos.
+                            </p>
+                          </div>
                         </div>
+                        <Button
+                          onClick={() => downloadFile(crossingResult, "devedoresCompleta")}
+                          className="w-full bg-rose-600 font-semibold text-white hover:bg-rose-500"
+                          data-testid="button-download-devedores-completo"
+                        >
+                          <Download className="mr-2 h-4 w-4" /> Baixar Devedores
+                          <span className="ml-auto rounded-md bg-black/15 px-2 py-0.5 text-xs">
+                            {crossingResult.stats.devedoresCompletos ?? 0}
+                          </span>
+                        </Button>
                       </div>
-                      <Button
-                        onClick={() => downloadFile(crossingResult, 'semDevedores')}
-                        className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold h-11 text-sm shadow-lg shadow-blue-900/30 transition-all duration-200 hover:scale-[1.01]"
-                        data-testid="button-download-sem-devedores"
-                      >
-                        <Download className="mr-2 h-4 w-4" /> Baixar Planilha Sem Devedores
-                      </Button>
-                    </div>
-                  )}
+                    ) : null}
 
-                  {(crossingResult.semDevedoresCompletaData || crossingResult.devedoresCompletaData) && (
-                    <div className="rounded-xl border border-purple-500/40 bg-purple-950/30 p-5 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Users className="w-5 h-5 text-purple-400 shrink-0" />
-                        <div>
-                          <p className="text-purple-200 font-bold text-sm">Planilhas completas com dados</p>
-                          <p className="text-purple-300/70 text-xs">
-                            Campos reconhecidos automaticamente, incluindo todos os telefones únicos e os dados extras disponíveis.
-                          </p>
+                    {crossingResult.semDevedoresCompletaData ? (
+                      <div className="flex min-h-40 flex-col justify-between gap-4 rounded-2xl border border-blue-400/25 bg-blue-400/[0.06] p-5">
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-400/15 text-blue-200">
+                            <Users className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-white">Sem devedores</h3>
+                            <p className="mt-1 text-sm leading-relaxed text-slate-300">
+                              Clientes sem débito em aberto, incluindo registros com baixa ou pagamento.
+                            </p>
+                          </div>
                         </div>
+                        <Button
+                          onClick={() => downloadFile(crossingResult, "semDevedoresCompleta")}
+                          className="w-full bg-blue-600 font-semibold text-white hover:bg-blue-500"
+                          data-testid="button-download-sem-devedores-completo"
+                        >
+                          <Download className="mr-2 h-4 w-4" /> Baixar Sem Devedores
+                          <span className="ml-auto rounded-md bg-black/15 px-2 py-0.5 text-xs">
+                            {crossingResult.stats.semDevedoresCompleta ?? 0}
+                          </span>
+                        </Button>
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {crossingResult.semDevedoresCompletaData && (
-                          <Button
-                            onClick={() => downloadFile(crossingResult, 'semDevedoresCompleta')}
-                            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold min-h-11"
-                            data-testid="button-download-sem-devedores-completo"
-                          >
-                            <Download className="mr-2 h-4 w-4 shrink-0" />
-                            <span>Sem Devedores ({crossingResult.stats.semDevedoresCompleta ?? 0})</span>
-                          </Button>
-                        )}
-                        {crossingResult.devedoresCompletaData && (
-                          <Button
-                            onClick={() => downloadFile(crossingResult, 'devedoresCompleta')}
-                            className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold min-h-11"
-                            data-testid="button-download-devedores-completo"
-                          >
-                            <Download className="mr-2 h-4 w-4 shrink-0" />
-                            <span>Devedores ({crossingResult.stats.devedoresCompletos ?? 0})</span>
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                    ) : null}
+                  </div>
+                  {!crossingResult.devedoresCompletaData && !crossingResult.semDevedoresCompletaData ? (
+                    <p role="status" className="rounded-xl border border-amber-300/20 bg-amber-300/5 p-4 text-sm text-amber-100">
+                      Não foi possível montar os arquivos completos. Confira se as duas planilhas têm uma coluna de nome reconhecível.
+                    </p>
+                  ) : null}
                 </div>
-              )}
+              ) : null}
 
-              {!crossingResult && !isProcessingCrossing && (
-                <Button 
-                  size="lg" 
-                  onClick={handleProcessCrossing} 
-                  disabled={isProcessingCrossing || !debtorsFile || !clientsFile}
-                  className="w-full bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white border-0 shadow-xl shadow-red-900/30 font-bold text-lg h-12 transition-all duration-300 hover:scale-[1.02]"
+              {!crossingResult && !isProcessingCrossing ? (
+                <Button
+                  size="lg"
+                  onClick={handleProcessCrossing}
+                  disabled={!debtorsFile || !clientsFile}
+                  className="h-12 w-full bg-blue-600 text-base font-bold text-white shadow-lg shadow-blue-950/40 transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                   data-testid="button-process-crossing"
                 >
-                  Processar e Adicionar Telefones
+                  Processar e separar os resultados
                 </Button>
-              )}
+              ) : null}
             </CardContent>
           </Card>
-        </div>
+          </main>
 
-        {/* Support & Services Section */}
-        <div className="grid md:grid-cols-2 gap-6 mt-12">
-          {/* Support Card */}
-          <Card className="bg-blue-950/30 border-blue-500/30 backdrop-blur-md shadow-lg shadow-blue-900/10">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <Smartphone className="w-6 h-6 text-blue-400" />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-red-400">
-                  Suporte Técnico
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-blue-100 text-sm font-medium">
-                Precisando de ajuda com a ferramenta? Entre em contato diretamente pelo WhatsApp.
-              </p>
-              <Button asChild className="w-full bg-green-600 hover:bg-green-500 text-white border-0 font-bold shadow-md">
-                <a href="https://wa.me/5562991422632" target="_blank" rel="noopener noreferrer">
-                  Falar no WhatsApp (62) 99142-2632
-                </a>
-              </Button>
-            </CardContent>
-          </Card>
+          <aside className="space-y-4">
+            <Card className="border border-white/10 bg-slate-900/70">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base text-white">
+                  <CheckCircle className="h-5 w-5 text-emerald-300" />
+                  Como funciona
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm leading-relaxed text-slate-300">
+                <p><strong className="text-white">Em aberto:</strong> sem data de baixa e sem data de pagamento.</p>
+                <p><strong className="text-white">Sem dívida ativa:</strong> pago/baixado ou sem débito pendente.</p>
+                <p><strong className="text-white">Telefones:</strong> telefone, WhatsApp e fax ficam em colunas numeradas.</p>
+              </CardContent>
+            </Card>
 
-          {/* Services Card */}
-          <Card className="bg-purple-950/30 border-purple-500/30 backdrop-blur-md shadow-lg shadow-purple-900/10">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <Wrench className="w-6 h-6 text-purple-400" />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-red-400">
-                  Outros Serviços
+            <details className="group rounded-2xl border border-white/10 bg-slate-900/70 p-4 open:bg-slate-900/90">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-blue-300 [&::-webkit-details-marker]:hidden">
+                <span className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-400/10 text-amber-200">
+                    <Wrench className="h-4 w-4" />
+                  </span>
+                  Extrair devedores sem cruzar
                 </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-purple-100 text-sm font-medium">
-                Formatação de computadores, Gestão de Tráfego Pago e Criação de Artes Profissionais.
-              </p>
-              <div className="flex gap-2">
-                <Button asChild variant="outline" className="flex-1 border-purple-500/40 bg-purple-500/10 text-purple-100 hover:bg-purple-500/20 hover:text-white hover:border-purple-400/60 font-semibold">
-                  <a href="https://www.instagram.com/marcos.rmo/" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2">
-                    <Instagram className="w-4 h-4" />
-                    @marcos.rmo
+                <span className="text-xs text-slate-400 group-open:hidden">Abrir</span>
+                <span className="hidden text-xs text-slate-400 group-open:inline">Fechar</span>
+              </summary>
+              <div className="mt-4 border-t border-white/10 pt-4">
+                <p className="mb-4 text-sm leading-relaxed text-slate-300">
+                  Use esta opção quando quiser apenas remover da lista as linhas que já têm baixa ou pagamento.
+                </p>
+                <FileUpload
+                  label="Planilha de devedores"
+                  description="A base completa de clientes não é necessária."
+                  selectedFile={debtorsFile}
+                  onFileSelect={(file) => {
+                    setDebtorsFile(file);
+                    setExtractionResult(null);
+                    setCrossingResult(null);
+                  }}
+                />
+                {isProcessingExtraction ? (
+                  <div role="status" className="flex items-center justify-center gap-3 py-5 text-sm text-slate-200">
+                    <Loader2 className="h-5 w-5 animate-spin text-amber-300" />
+                    Filtrando pagamentos...
+                  </div>
+                ) : null}
+                {extractionResult ? (
+                  <div className="mt-4 space-y-3 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] p-4">
+                    <p className="text-sm text-slate-200">
+                      {extractionResult.stats.foundDetailed ?? 0} linhas em aberto encontradas.
+                    </p>
+                    <Button
+                      onClick={() => downloadFile(extractionResult, "detailed")}
+                      className="w-full bg-amber-500 font-semibold text-slate-950 hover:bg-amber-400"
+                      data-testid="button-download-extraction"
+                    >
+                      <Download className="mr-2 h-4 w-4" /> Baixar lista filtrada
+                    </Button>
+                  </div>
+                ) : null}
+                {!extractionResult && !isProcessingExtraction ? (
+                  <Button
+                    onClick={handleProcessExtraction}
+                    disabled={!debtorsFile}
+                    className="mt-4 w-full bg-amber-500 font-semibold text-slate-950 hover:bg-amber-400 disabled:opacity-50"
+                    data-testid="button-extract-debtors"
+                  >
+                    Filtrar linhas pagas
+                  </Button>
+                ) : null}
+              </div>
+            </details>
+
+            <Card className="border border-white/10 bg-slate-900/70">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base text-white">
+                  <Smartphone className="h-5 w-5 text-blue-300" />
+                  Precisa de ajuda?
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm leading-relaxed text-slate-300">
+                  Fale com o suporte pelo WhatsApp se precisar de ajuda para preparar suas planilhas.
+                </p>
+                <Button asChild className="w-full bg-emerald-600 font-semibold text-white hover:bg-emerald-500">
+                  <a href="https://wa.me/5562991422632" target="_blank" rel="noopener noreferrer">
+                    Falar no WhatsApp
                   </a>
                 </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-        
-        {/* Footer */}
-        <div className="text-center pt-8 pb-4 border-t border-white/10">
-          <p className="text-slate-400 text-sm mb-2 font-medium">
-            Se precisa de serviços como formatar computador, gestão de tráfego pago ou artes, entre em contato comigo.
-          </p>
-          <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider">
-            © 2025 Marcos Oliveira. Todos os direitos reservados.
-          </p>
+                <a
+                  href="https://www.instagram.com/marcos.rmo/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-300 transition-colors hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
+                >
+                  <Instagram className="h-4 w-4" />
+                  @marcos.rmo
+                </a>
+              </CardContent>
+            </Card>
+          </aside>
         </div>
 
+        <footer className="border-t border-white/10 pt-5 text-center text-xs text-slate-500">
+          © 2025 Marcos Oliveira. Todos os direitos reservados.
+        </footer>
+        </div>
       </div>
-    </div>
   );
 }
