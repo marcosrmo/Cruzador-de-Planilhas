@@ -406,12 +406,25 @@ function findColumnIndicesByPatterns(headers: string[], patterns: string[]): num
     if (!normalizedHeader) return indices;
     if (normalizedPatterns.some(pattern => (
       pattern.length >= 3
-      && (normalizedHeader === pattern || normalizedHeader.includes(pattern))
+      && (normalizedHeader === pattern || hasWordBoundary(normalizedHeader, pattern))
     ))) {
       indices.push(index);
     }
     return indices;
   }, []);
+}
+
+// Check if pattern appears as a whole word or at word boundaries in the header
+function hasWordBoundary(text: string, pattern: string): boolean {
+  // Exact match
+  if (text === pattern) return true;
+  // Pattern at start followed by word boundary
+  if (text.startsWith(pattern + " ")) return true;
+  // Pattern at end preceded by word boundary
+  if (text.endsWith(" " + pattern)) return true;
+  // Pattern in middle with word boundaries
+  if (text.includes(" " + pattern + " ")) return true;
+  return false;
 }
 
 function findPhoneColumnIndices(headers: string[]): number[] {
@@ -504,6 +517,12 @@ const EMPTY_SETTLEMENT_DATE_MARKERS = new Set([
   "", "-", "--", "na", "n a", "n/a", "nd", "n d", "0",
   "n", "no", "false", "pendente", "em aberto", "aberto", "sem data", "sem baixa", "sem pagamento",
   "nao", "nao pago", "nao efetuado", "nao baixado", "nao informado",
+  // Additional Portuguese status markers for settlement dates
+  "pendente de baixa", "pendente de pagamento", "aguardando baixa", "aguardando pagamento",
+  "a vencer", "a pagar", "a receber", "em processo", "em analise", "em analise",
+  "para baixar", "para pagar", "a baixar", "a pagar", "sem baixa", "sem pagamento",
+  "nao baixado", "nao pago", "nao liquidado", "nao quitado",
+  "pendente baixado", "pendente pago", "a confirmar", "confirmar",
 ]);
 
 function hasSettlementDate(value: any): boolean {
@@ -749,10 +768,20 @@ export async function processFiles(
       ...LOWER_DATE_PATTERNS,
       ...PAYMENT_DATE_PATTERNS,
     ]);
+    // Filter out due date indices to avoid false positives
+    const dueDateIndices = findColumnIndicesByPatterns(debtorsHeader, DUE_DATE_PATTERNS);
+    const filteredAutoIndices = autoSettlementDateIndices.filter(index => !dueDateIndices.includes(index));
     const settlementDateIndices = Array.from(new Set([
-      ...autoSettlementDateIndices,
+      ...filteredAutoIndices,
       ...[idxLowerDate, idxPaymentDate].filter(index => index >= 0 && index !== idxDueDate),
     ]));
+    // Fail if no settlement date columns were found - cannot safely classify
+    if (settlementDateIndices.length === 0) {
+      return {
+        success: false,
+        message: "❌ Nenhuma coluna de Data de Baixa ou Data de Pagamento foi identificada na planilha de devedores. Não é possível classificar os lançamentos com segurança. Verifique os cabeçalhos da planilha.",
+      };
+    }
     const colNameDebtors = idxNameDebtors >= 0 ? debtorsHeader[idxNameDebtors] : null;
     const colLowerDate = idxLowerDate >= 0 ? debtorsHeader[idxLowerDate] : null;
     const colPaymentDate = idxPaymentDate >= 0 ? debtorsHeader[idxPaymentDate] : null;
