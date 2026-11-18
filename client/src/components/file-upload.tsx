@@ -151,8 +151,10 @@ export function FileUpload({
             </div>
           </div>
           <button
+            type="button"
             onClick={removeFile}
-            className="p-1.5 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-md transition-colors"
+            aria-label={`Remover ${selectedFile.name}`}
+            className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-red-500/20 hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
           >
             <X className="w-4 h-4" />
           </button>

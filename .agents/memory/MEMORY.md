@@ -1,2 +1,2 @@
 - [Date header matching](date-header-matching.md) — use explicit aliases for due/payment dates; fuzzy matches can silently treat open debts as paid.
-- [Debtor export layout](debtor-export-layout.md) — use “Seu Numero” for documents; only unpaid rows supply debt values/dates.
+- [Debtor export layout](debtor-export-layout.md) — number phone/WhatsApp/fax columns; choose the shortest document value as “Nota Fiscal”; only unpaid rows supply debt values/dates.

@@ -3,8 +3,8 @@ name: Debtor export layout
 description: User requirements for the complete debtor-data spreadsheet.
 ---
 
-The “Devedores com dados” export has one row per debtor, unique phone columns, and financial/date fields sourced only from active debt rows. In the confirmed bank workbook, “Seu Numero” is the document-number column; do not combine it with “Nosso Numero”. Both “Sem Devedores” exports keep one row per client with unique phone columns; leave debt value, due date, and sale date blank there. “Simples” may repeat a debtor name once per unique phone; keep the detailed report unchanged. Preserve all existing input formats, especially XLS and XLSX.
+The “Devedores com dados” export has one row per debtor, unique phone columns (including telephone, WhatsApp, and fax), and financial/date fields sourced only from active debt rows. When multiple document-number columns exist, select the value with the fewest digits and label the output column “Nota Fiscal”; do not combine document numbers. Both “Sem Devedores” exports keep one row per client with unique phone columns; leave debt value, due date, and sale date blank there. Preserve all existing input formats, especially XLS and XLSX.
 
-**Why:** The user clarified that multiple phones belong in both no-debtor exports and in the simple export, repeated names are allowed only in the simple export, and only unpaid debt rows should contribute debt values/dates.
+**Why:** The user clarified that phone, WhatsApp, and fax fields should become numbered phone columns, document values should be selected by the fewest digits, and only unpaid debt rows should contribute debt values/dates.
 
-**How to apply:** Keep each export's row behavior distinct, deduplicate phone values, use “Seu Numero” as the document-number source for this bank export, and do not alter other outputs or formats unless explicitly requested.
+**How to apply:** Keep each export's row behavior distinct, number and deduplicate all phone values, select one shortest document value, and do not alter input formats unless explicitly requested.

@@ -117,31 +117,43 @@ export interface ProcessResult {
 // Utility to format date to DD/MM/YYYY
 function formatDate(value: any): string {
   if (!value) return "";
-  
-  // If it's a number (Excel date serial), convert it
+
+  const formatParts = (day: number, month: number, year: number) => (
+    `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`
+  );
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime())
+      ? ""
+      : formatParts(value.getDate(), value.getMonth() + 1, value.getFullYear());
+  }
+
+  // Convert Excel's serial date directly to parts to avoid timezone day shifts.
   if (typeof value === 'number') {
-    const date = XLSX.utils.format_cell({ v: value, t: 'd' });
-    if (date) {
-      const d = new Date(date);
-      if (!isNaN(d.getTime())) {
-        const day = String(d.getDate()).padStart(2, '0');
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const year = d.getFullYear();
-        return `${day}/${month}/${year}`;
-      }
+    const date = XLSX.SSF.parse_date_code(value);
+    if (date) return formatParts(date.d, date.m, date.y);
+  }
+
+  const str = String(value).trim();
+  const isoDate = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:$|T)/);
+  if (isoDate) {
+    return formatParts(Number(isoDate[3]), Number(isoDate[2]), Number(isoDate[1]));
+  }
+
+  const brazilianDate = str.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})$/);
+  if (brazilianDate) {
+    const day = Number(brazilianDate[1]);
+    const month = Number(brazilianDate[2]);
+    let year = Number(brazilianDate[3]);
+    if (year < 100) year += year >= 50 ? 1900 : 2000;
+    if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
+      return formatParts(day, month, year);
     }
   }
 
-  // If it's already a string, try to parse or return as is if already in DD/MM/YYYY
-  const str = String(value).trim();
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) return str;
-
   const d = new Date(str);
   if (!isNaN(d.getTime())) {
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-    return `${day}/${month}/${year}`;
+    return formatParts(d.getDate(), d.getMonth() + 1, d.getFullYear());
   }
 
   return str;
@@ -293,8 +305,8 @@ function hasCellValue(value: any): boolean {
 
 const EMPTY_SETTLEMENT_DATE_MARKERS = new Set([
   "", "-", "--", "na", "n a", "n/a", "nd", "n d", "0",
-  "pendente", "em aberto", "aberto", "sem data", "sem baixa", "sem pagamento",
-  "nao", "nao pago", "nao efetuado", "nao baixado",
+  "n", "no", "false", "pendente", "em aberto", "aberto", "sem data", "sem baixa", "sem pagamento",
+  "nao", "nao pago", "nao efetuado", "nao baixado", "nao informado",
 ]);
 
 function hasSettlementDate(value: any): boolean {
@@ -976,6 +988,7 @@ export async function processFiles(
       const phonesByDebtor = new Map<string, string[]>();
       let maxPhoneColumns = 0;
       let maxInstallmentColumns = 0;
+      let completePhoneCount = 0;
       for (const [normalizedName, group] of groupedDebtors) {
         const debtorPhoneValues = group.rows.reduce<any[]>((values, row) => {
           values.push(...completeDebtorPhoneIndices.map(index => row[index]));
@@ -986,9 +999,11 @@ export async function processFiles(
           ...debtorPhoneValues,
         ]);
         phonesByDebtor.set(normalizedName, phones);
+        completePhoneCount += phones.length;
         maxPhoneColumns = Math.max(maxPhoneColumns, phones.length);
         maxInstallmentColumns = Math.max(maxInstallmentColumns, group.rows.length);
       }
+      foundCount = completePhoneCount;
 
       const phoneHeaders = Array.from(
         { length: maxPhoneColumns },
@@ -1054,7 +1069,8 @@ export async function processFiles(
         const cpfCnpj = aggregateCellValues(debtorCpfCnpj, value => String(value).trim())
           || clientRecord?.values.get("CPF/CNPJ")
           || "";
-        const documentNumber = selectShortestDocumentValue(group.rows, completeDebtorDocumentIndices);
+        const documentNumber = selectShortestDocumentValue(group.rows, completeDebtorDocumentIndices)
+          || chooseShortestDocumentValue(clientRecord?.documents ?? []);
         const saleDate = aggregatedField("Data da Venda", saleDateIndex, formatDate);
         const debtorExtraValues = COMPLETE_EXTRA_GROUPS.map(groupField => {
           const clientValue = clientRecord?.values.get(groupField.label);

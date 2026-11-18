@@ -59,6 +59,7 @@ test("separa débitos em aberto, organiza telefones e mantém campos extras", as
   assert.equal(result.stats?.total, 2, "paid rows should not count as open debt");
   assert.equal(result.stats?.devedoresCompletos, 1);
   assert.equal(result.stats?.semDevedoresCompleta, 2);
+  assert.equal(result.stats?.found, 5, "the phone count should include all unique columns for each debtor");
 
   const debtorRows = readRows(result.devedoresCompletaData);
   const debtorHeaders = debtorRows[0].map(String);
@@ -79,6 +80,7 @@ test("separa débitos em aberto, organiza telefones e mantém campos extras", as
   assert.ok(dueOneIndex >= 0 && dueTwoIndex > dueOneIndex);
   assert.equal(debtorHeaders[dueOneIndex + 1], "Valor 1");
   assert.equal(debtorHeaders[dueTwoIndex + 1], "Valor 2");
+  assert.equal(debtor[dueOneIndex], "10/05/2026");
   assert.equal(debtor[dueOneIndex + 1], 120.5);
   assert.equal(debtor[dueTwoIndex + 1], 80);
   assert.ok(!debtor.includes(999), "paid installment amounts must not appear in the debtor sheet");
@@ -99,14 +101,14 @@ test("separa débitos em aberto, organiza telefones e mantém campos extras", as
   assert.equal(bia[noDebtHeaders.indexOf("Vencimento")], "");
 });
 
-test("mantém linhas com apenas vencimento como débitos em aberto", async () => {
+test("mantém como aberto um vencimento com marcador de pagamento vazio", async () => {
   const clientsFile = workbookFile([
     ["Nome do Cliente", "Telefone"],
     ["Davi Rocha", "11 95555-1010"],
   ], "clientes.xlsx");
   const debtorsFile = workbookFile([
-    ["Nome", "Data de Vencimento", "Valor"],
-    ["Davi Rocha", "2026-08-15", 75],
+    ["Nome", "Data de Vencimento", "Valor", "Data de Pagamento"],
+    ["Davi Rocha", "2026-08-15", 75, "N"],
   ], "devedores.xlsx");
 
   const result = await processFiles(clientsFile, debtorsFile);
