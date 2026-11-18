@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { FileUpload } from "@/components/file-upload";
+import { ColumnReviewPanel } from "@/components/column-review";
 import { Button } from "@/components/ui/button";
-import { processFiles } from "@/lib/excel-processor";
+import { inspectFiles, processFiles, type ColumnMappings, type ColumnReview, type ColumnSelection } from "@/lib/excel-processor";
 import { Download, Loader2, CheckCircle, Smartphone, Instagram, Wrench, Users, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -34,6 +35,9 @@ export default function Home() {
   const [debtorsFile, setDebtorsFile] = useState<File | null>(null);
   const [extractionResult, setExtractionResult] = useState<ResultState>(null);
   const [crossingResult, setCrossingResult] = useState<ResultState>(null);
+  const [columnReview, setColumnReview] = useState<ColumnReview | null>(null);
+  const [columnMappings, setColumnMappings] = useState<ColumnMappings | null>(null);
+  const [reviewMode, setReviewMode] = useState<"crossing" | "extraction" | null>(null);
   const [isProcessingExtraction, setIsProcessingExtraction] = useState(false);
   const [isProcessingCrossing, setIsProcessingCrossing] = useState(false);
   const { toast } = useToast();
@@ -50,31 +54,52 @@ export default function Home() {
 
     setIsProcessingExtraction(true);
     setExtractionResult(null);
+    setColumnReview(null);
+    setColumnMappings(null);
+    const inspection = await inspectFiles(null, debtorsFile);
+    setIsProcessingExtraction(false);
 
-    setTimeout(async () => {
-      const response = await processFiles(null, debtorsFile);
-      setIsProcessingExtraction(false);
+    if (inspection.success && inspection.review && inspection.mappings) {
+      setColumnReview(inspection.review);
+      setColumnMappings(inspection.mappings);
+      setReviewMode("extraction");
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Erro ao conferir as colunas",
+        description: inspection.message || "Ocorreu um erro desconhecido.",
+      });
+    }
+  };
 
-      if (response.success && response.data && response.stats && response.fileName) {
-        setExtractionResult({
-          data: response.data,
-          detailedData: response.detailedData,
-          stats: response.stats,
-          fileName: response.fileName,
-          detailedFileName: response.detailedFileName
-        });
-        toast({
-          title: "Extração concluída!",
-          description: `A lista foi filtrada removendo os registros com baixa ou pagamento.`,
-        });
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Erro na extração",
-          description: response.message || "Ocorreu um erro desconhecido.",
-        });
-      }
-    }, 500);
+  const handleGenerateExtraction = async () => {
+    if (!debtorsFile || reviewMode !== "extraction") return;
+    setIsProcessingExtraction(true);
+    const response = await processFiles(null, debtorsFile, columnMappings ?? undefined);
+    setIsProcessingExtraction(false);
+
+    if (response.success && response.data && response.stats && response.fileName) {
+      setExtractionResult({
+        data: response.data,
+        detailedData: response.detailedData,
+        stats: response.stats,
+        fileName: response.fileName,
+        detailedFileName: response.detailedFileName
+      });
+      setColumnReview(null);
+      setColumnMappings(null);
+      setReviewMode(null);
+      toast({
+        title: "Extração concluída!",
+        description: "A lista foi filtrada removendo os registros com baixa ou pagamento.",
+      });
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Erro na extração",
+        description: response.message || "Ocorreu um erro desconhecido.",
+      });
+    }
   };
 
   const handleProcessCrossing = async () => {
@@ -89,39 +114,81 @@ export default function Home() {
 
     setIsProcessingCrossing(true);
     setCrossingResult(null);
+    setColumnReview(null);
+    setColumnMappings(null);
+    const inspection = await inspectFiles(clientsFile, debtorsFile);
+    setIsProcessingCrossing(false);
 
-    setTimeout(async () => {
-      const response = await processFiles(clientsFile, debtorsFile);
-      setIsProcessingCrossing(false);
-
-      if (response.success && response.data && response.stats && response.fileName) {
-        setCrossingResult({
-          data: response.data,
-          detailedData: response.detailedData,
-          semDevedoresData: response.semDevedoresData,
-          semDevedoresCompletaData: response.semDevedoresCompletaData,
-          devedoresCompletaData: response.devedoresCompletaData,
-          stats: response.stats,
-          fileName: response.fileName,
-          detailedFileName: response.detailedFileName,
-          semDevedoresFileName: response.semDevedoresFileName,
-          semDevedoresCompletaFileName: response.semDevedoresCompletaFileName,
-          devedoresCompletaFileName: response.devedoresCompletaFileName,
-        });
-        toast({
-          title: "Cruzamento concluído!",
-          description: `Encontrados ${response.stats.found} telefones de ${response.stats.total} devedores.`,
-        });
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Erro no processamento",
-          description: response.message || "Ocorreu um erro desconhecido.",
-        });
-      }
-    }, 500);
+    if (inspection.success && inspection.review && inspection.mappings) {
+      setColumnReview(inspection.review);
+      setColumnMappings(inspection.mappings);
+      setReviewMode("crossing");
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Erro ao conferir as colunas",
+        description: inspection.message || "Ocorreu um erro desconhecido.",
+      });
+    }
   };
 
+  const handleGenerateCrossing = async () => {
+    if (!clientsFile || !debtorsFile || reviewMode !== "crossing") return;
+    setIsProcessingCrossing(true);
+    const response = await processFiles(clientsFile, debtorsFile, columnMappings ?? undefined);
+    setIsProcessingCrossing(false);
+
+    if (response.success && response.data && response.stats && response.fileName) {
+      setCrossingResult({
+        data: response.data,
+        detailedData: response.detailedData,
+        semDevedoresData: response.semDevedoresData,
+        semDevedoresCompletaData: response.semDevedoresCompletaData,
+        devedoresCompletaData: response.devedoresCompletaData,
+        stats: response.stats,
+        fileName: response.fileName,
+        detailedFileName: response.detailedFileName,
+        semDevedoresFileName: response.semDevedoresFileName,
+        semDevedoresCompletaFileName: response.semDevedoresCompletaFileName,
+        devedoresCompletaFileName: response.devedoresCompletaFileName,
+      });
+      setColumnReview(null);
+      setColumnMappings(null);
+      setReviewMode(null);
+      toast({
+        title: "Cruzamento concluído!",
+        description: `Encontrados ${response.stats.found} telefones de ${response.stats.total} devedores.`,
+      });
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Erro no processamento",
+        description: response.message || "Ocorreu um erro desconhecido.",
+      });
+    }
+  };
+
+  const updateColumnMapping = (
+    kind: "clients" | "debtors",
+    key: string,
+    selection: ColumnSelection,
+  ) => {
+    setColumnMappings(current => current
+      ? {
+          ...current,
+          [kind]: {
+            ...(current[kind] ?? {}),
+            [key]: selection,
+          },
+        }
+      : current);
+  };
+
+  const cancelColumnReview = () => {
+    setColumnReview(null);
+    setColumnMappings(null);
+    setReviewMode(null);
+  };
   const downloadFile = (
     res: ResultState,
     type: 'simple' | 'detailed' | 'semDevedores' | 'semDevedoresCompleta' | 'devedoresCompleta' = 'simple'
@@ -214,6 +281,9 @@ export default function Home() {
                     onFileSelect={(file) => {
                       setClientsFile(file);
                       setCrossingResult(null);
+                      setColumnReview(null);
+                      setColumnMappings(null);
+                      setReviewMode(null);
                     }}
                   />
                 </div>
@@ -231,6 +301,9 @@ export default function Home() {
                       setDebtorsFile(file);
                       setCrossingResult(null);
                       setExtractionResult(null);
+                      setColumnReview(null);
+                      setColumnMappings(null);
+                      setReviewMode(null);
                     }}
                   />
                 </div>
@@ -239,9 +312,22 @@ export default function Home() {
               {isProcessingCrossing ? (
                 <div role="status" className="flex flex-col items-center justify-center gap-3 rounded-xl border border-blue-400/20 bg-blue-400/5 py-8">
                   <Loader2 className="h-8 w-8 animate-spin text-blue-300" />
-                  <p className="font-medium text-white">Conferindo nomes, pagamentos e telefones...</p>
+                  <p className="font-medium text-white">
+                    {reviewMode === "crossing" ? "Gerando as planilhas..." : "Conferindo nomes, pagamentos e telefones..."}
+                  </p>
                   <p className="text-xs text-slate-400">Planilhas grandes podem levar alguns segundos.</p>
                 </div>
+              ) : null}
+
+              {columnReview && reviewMode === "crossing" ? (
+                <ColumnReviewPanel
+                  review={columnReview}
+                  mappings={columnMappings ?? { debtors: {} }}
+                  busy={isProcessingCrossing}
+                  onChange={updateColumnMapping}
+                  onConfirm={handleGenerateCrossing}
+                  onCancel={cancelColumnReview}
+                />
               ) : null}
 
               {crossingResult ? (
@@ -336,7 +422,7 @@ export default function Home() {
                 </div>
               ) : null}
 
-              {!crossingResult && !isProcessingCrossing ? (
+              {!crossingResult && !isProcessingCrossing && reviewMode !== "crossing" ? (
                 <Button
                   size="lg"
                   onClick={handleProcessCrossing}
@@ -344,7 +430,7 @@ export default function Home() {
                   className="h-12 w-full bg-blue-600 text-base font-bold text-white shadow-lg shadow-blue-950/40 transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                   data-testid="button-process-crossing"
                 >
-                  Processar e separar os resultados
+                  Conferir colunas reconhecidas
                 </Button>
               ) : null}
             </CardContent>
@@ -389,12 +475,27 @@ export default function Home() {
                     setDebtorsFile(file);
                     setExtractionResult(null);
                     setCrossingResult(null);
+                    setColumnReview(null);
+                    setColumnMappings(null);
+                    setReviewMode(null);
                   }}
                 />
                 {isProcessingExtraction ? (
                   <div role="status" className="flex items-center justify-center gap-3 py-5 text-sm text-slate-200">
                     <Loader2 className="h-5 w-5 animate-spin text-amber-300" />
-                    Filtrando pagamentos...
+                    {reviewMode === "extraction" ? "Gerando a planilha..." : "Conferindo as colunas..."}
+                  </div>
+                ) : null}
+                {columnReview && reviewMode === "extraction" ? (
+                  <div className="mt-4">
+                    <ColumnReviewPanel
+                      review={columnReview}
+                      mappings={columnMappings ?? { debtors: {} }}
+                      busy={isProcessingExtraction}
+                      onChange={updateColumnMapping}
+                      onConfirm={handleGenerateExtraction}
+                      onCancel={cancelColumnReview}
+                    />
                   </div>
                 ) : null}
                 {extractionResult ? (
@@ -411,14 +512,14 @@ export default function Home() {
                     </Button>
                   </div>
                 ) : null}
-                {!extractionResult && !isProcessingExtraction ? (
+                {!extractionResult && !isProcessingExtraction && reviewMode !== "extraction" ? (
                   <Button
                     onClick={handleProcessExtraction}
                     disabled={!debtorsFile}
                     className="mt-4 w-full bg-amber-500 font-semibold text-slate-950 hover:bg-amber-400 disabled:opacity-50"
                     data-testid="button-extract-debtors"
                   >
-                    Filtrar linhas pagas
+                    Conferir colunas antes de filtrar
                   </Button>
                 ) : null}
               </div>

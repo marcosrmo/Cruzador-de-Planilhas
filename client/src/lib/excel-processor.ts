@@ -114,6 +114,39 @@ export interface ProcessResult {
   devedoresCompletaFileName?: string;
 }
 
+export type ColumnSelection = number | number[];
+
+export type ColumnReviewField = {
+  key: string;
+  label: string;
+  multiple: boolean;
+  required?: boolean;
+  selected: ColumnSelection;
+};
+
+export type SpreadsheetColumnReview = {
+  fileName: string;
+  headers: string[];
+  fields: ColumnReviewField[];
+};
+
+export type ColumnReview = {
+  clients: SpreadsheetColumnReview | null;
+  debtors: SpreadsheetColumnReview;
+};
+
+export type ColumnMappings = {
+  clients?: Record<string, ColumnSelection>;
+  debtors: Record<string, ColumnSelection>;
+};
+
+export type ColumnInspectionResult = {
+  success: boolean;
+  message?: string;
+  review?: ColumnReview;
+  mappings?: ColumnMappings;
+};
+
 // Utility to format date to DD/MM/YYYY
 function formatDate(value: any): string {
   if (!value) return "";
@@ -192,6 +225,156 @@ const COMPLETE_EXTRA_GROUPS = SEM_DEVEDORES_GROUPS.filter(
   group => !["CNPJ/CPF", "Telefone", "Descrição"].includes(group.label)
 );
 
+const LOWER_DATE_PATTERNS = [
+  "data de baixa", "data da baixa", "data baixa", "dt de baixa", "dt da baixa", "dt baixa",
+  "data de quitacao", "data da quitacao", "data quitacao", "dt quitacao",
+  "data de liquidacao", "data da liquidacao", "data liquidacao", "dt liquidacao",
+];
+
+const PAYMENT_DATE_PATTERNS = [
+  "data de pagamento", "data do pagamento", "data pagamento",
+  "dt de pagamento", "dt do pagamento", "dt pagamento",
+  "data pgto", "data pagto", "dt pgto", "dt pagto",
+  "data de pgto", "data do pgto", "data de pagto", "data do pagto",
+];
+
+const DUE_DATE_PATTERNS = ["data de vencimento", "data vencimento", "vencimento"];
+
+function exportFieldMappingKey(label: string): string {
+  switch (label) {
+    case "Nome do Cliente": return "name";
+    case "E-mail": return "email";
+    case "CPF/CNPJ": return "cpfCnpj";
+    case "Valor": return "value";
+    case "Vencimento": return "dueDate";
+    case "Nº Parcela": return "installmentNumber";
+    case "Total de Parcelas": return "totalInstallments";
+    case "Nota Fiscal": return "documents";
+    case "Descrição": return "description";
+    case "Data da Venda": return "saleDate";
+    default: return label;
+  }
+}
+
+function extraFieldMappingKey(label: string): string {
+  if (label === "CNPJ/CPF") return "cpfCnpj";
+  if (label === "Telefone") return "phones";
+  if (label === "Descrição") return "description";
+  return `extra:${label}`;
+}
+
+function defaultColumnSelection(headers: string[], key: string, multiple: boolean): ColumnSelection {
+  if (key === "name") {
+    const found = findSimilarColumn(headers, "nome") || findSimilarColumn(headers, "nome pagador");
+    return found ? headers.indexOf(found) : -1;
+  }
+  if (key === "phones") return findPhoneColumnIndices(headers);
+  if (key === "cpfCnpj") return findCpfCnpjColumnIndices(headers);
+  if (key === "documents") return findDocumentColumnIndices(headers);
+  if (key === "lowerDate") return findColumnIndexByPatterns(headers, LOWER_DATE_PATTERNS);
+  if (key === "paymentDate") return findColumnIndexByPatterns(headers, PAYMENT_DATE_PATTERNS);
+  if (key === "value") {
+    const found = findSimilarColumn(headers, "valor");
+    return found ? headers.indexOf(found) : -1;
+  }
+  if (key === "dueDate") return findColumnIndexByPatterns(headers, DUE_DATE_PATTERNS);
+
+  const exportField = COMPLETE_EXPORT_FIELDS.find(
+    field => exportFieldMappingKey(field.label) === key,
+  );
+  if (exportField) return findColumnIndexByPatterns(headers, exportField.patterns);
+
+  const extraGroup = COMPLETE_EXTRA_GROUPS.find(
+    group => extraFieldMappingKey(group.label) === key,
+  );
+  if (extraGroup) return findColumnIndexByPatterns(headers, extraGroup.patterns);
+
+  const semDevedoresGroup = SEM_DEVEDORES_GROUPS.find(
+    group => extraFieldMappingKey(group.label) === key,
+  );
+  if (semDevedoresGroup) {
+    for (const pattern of semDevedoresGroup.patterns) {
+      const found = findSimilarColumn(headers, pattern);
+      if (found) return headers.indexOf(found);
+    }
+  }
+
+  return multiple ? [] : -1;
+}
+
+function buildSpreadsheetColumnReview(file: File, rawRows: any[][], kind: "clients" | "debtors"): SpreadsheetColumnReview {
+  const headers = Array.from(
+    rawRows[0] ?? [],
+    (value, index) => hasCellValue(value) ? String(value).trim() : `Coluna ${index + 1}`,
+  );
+  const definitions: Omit<ColumnReviewField, "selected">[] = [
+    { key: "name", label: "Nome do cliente", multiple: false, required: true },
+    { key: "phones", label: "Telefones, WhatsApp e fax", multiple: true },
+    { key: "cpfCnpj", label: "CPF/CNPJ", multiple: true },
+    { key: "documents", label: "Números de documento / nota fiscal", multiple: true },
+  ];
+
+  for (const field of COMPLETE_EXPORT_FIELDS.slice(1)) {
+    const key = exportFieldMappingKey(field.label);
+    if (["cpfCnpj", "documents"].includes(key) || definitions.some(existing => existing.key === key)) continue;
+    definitions.push({ key, label: field.label, multiple: false });
+  }
+
+  for (const group of COMPLETE_EXTRA_GROUPS) {
+    const key = extraFieldMappingKey(group.label);
+    if (definitions.some(existing => existing.key === key)) continue;
+    definitions.push({ key, label: group.label, multiple: false });
+  }
+
+  if (kind === "debtors") {
+    definitions.splice(4, 0,
+      { key: "lowerDate", label: "Data da baixa / quitação", multiple: false },
+      { key: "paymentDate", label: "Data do pagamento", multiple: false },
+    );
+  }
+
+  return {
+    fileName: file.name,
+    headers,
+    fields: definitions.map(field => ({
+      ...field,
+      selected: defaultColumnSelection(headers, field.key, field.multiple),
+    })),
+  };
+}
+
+function mappingsFromReview(review: ColumnReview): ColumnMappings {
+  const readFields = (sheet: SpreadsheetColumnReview) => Object.fromEntries(
+    sheet.fields.map(field => [field.key, field.selected]),
+  );
+  return {
+    clients: review.clients ? readFields(review.clients) : undefined,
+    debtors: readFields(review.debtors),
+  };
+}
+
+function selectedColumnIndex(
+  mappings: Record<string, ColumnSelection> | undefined,
+  key: string,
+  fallback: number,
+): number {
+  const selection = mappings?.[key];
+  if (selection === undefined) return fallback;
+  if (Array.isArray(selection)) return selection.find(index => index >= 0) ?? -1;
+  return selection;
+}
+
+function selectedColumnIndices(
+  mappings: Record<string, ColumnSelection> | undefined,
+  key: string,
+  fallback: number[],
+): number[] {
+  const selection = mappings?.[key];
+  if (selection === undefined) return fallback;
+  const indices = Array.isArray(selection) ? selection : [selection];
+  return indices.filter(index => Number.isInteger(index) && index >= 0);
+}
+
 function findColumnIndexByPatterns(headers: string[], patterns: string[]): number {
   // sheet_to_json can return sparse arrays when the worksheet has blank header cells.
   // Array.from fills those gaps so findIndex never calls includes on an undefined slot.
@@ -210,11 +393,6 @@ function findColumnIndexByPatterns(headers: string[], patterns: string[]): numbe
   }
 
   return -1;
-}
-
-function findColumnNameByPatterns(headers: string[], patterns: string[]): string | null {
-  const index = findColumnIndexByPatterns(headers, patterns);
-  return index === -1 ? null : headers[index];
 }
 
 function findPhoneColumnIndices(headers: string[]): number[] {
@@ -430,9 +608,63 @@ function parseCurrencyAmount(value: any): number | null {
   return isNegative ? -Math.abs(parsed) : parsed;
 }
 
+async function readExcelRows(file: File, label: string): Promise<any[][]> {
+  try {
+    if (!file || file.size === 0) throw new Error("o arquivo está vazio");
+
+    const workbook = XLSX.read(await file.arrayBuffer(), { cellDates: true });
+    if (!workbook.SheetNames.length) throw new Error("nenhuma aba foi encontrada");
+
+    // Some exports include a blank cover sheet before the actual table.
+    const firstSheetName = workbook.SheetNames.find(name => {
+      const sheet = workbook.Sheets[name];
+      return Boolean(sheet && sheet["!ref"]);
+    }) ?? workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[firstSheetName];
+    if (!worksheet) throw new Error("a primeira aba não pôde ser aberta");
+
+    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false }) as any[][];
+    if (!rows.length) throw new Error("a aba selecionada não contém dados");
+    return rows;
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new Error(`Não foi possível ler a planilha ${label} "${file.name}": ${reason}`);
+  }
+}
+
+export async function inspectFiles(
+  clientsFile: File | null,
+  debtorsFile: File,
+): Promise<ColumnInspectionResult> {
+  try {
+    const debtorsRows = await readExcelRows(debtorsFile, "de devedores");
+    const clientsRows = clientsFile ? await readExcelRows(clientsFile, "de clientes") : null;
+    if (debtorsRows.length < 2) {
+      return { success: false, message: "A planilha de devedores parece estar vazia." };
+    }
+    if (clientsRows && clientsRows.length < 2) {
+      return { success: false, message: "A planilha de clientes parece estar vazia." };
+    }
+
+    const review: ColumnReview = {
+      clients: clientsFile && clientsRows
+        ? buildSpreadsheetColumnReview(clientsFile, clientsRows, "clients")
+        : null,
+      debtors: buildSpreadsheetColumnReview(debtorsFile, debtorsRows, "debtors"),
+    };
+    return { success: true, review, mappings: mappingsFromReview(review) };
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 export async function processFiles(
   clientsFile: File | null, 
-  debtorsFile: File
+  debtorsFile: File,
+  columnMappings?: ColumnMappings,
 ): Promise<ProcessResult> {
   let processingStage = "inicialização";
   try {
@@ -443,43 +675,10 @@ export async function processFiles(
     });
 
     // 1. Read files
-    const readExcel = async (file: File, label: string) => {
-      try {
-        if (!file || file.size === 0) {
-          throw new Error("o arquivo está vazio");
-        }
-
-        const arrayBuffer = await file.arrayBuffer();
-        const workbook = XLSX.read(arrayBuffer, { cellDates: true });
-        if (!workbook.SheetNames.length) {
-          throw new Error("nenhuma aba foi encontrada");
-        }
-
-        // Some exports include a blank cover sheet before the actual table.
-        const firstSheetName = workbook.SheetNames.find(name => {
-          const sheet = workbook.Sheets[name];
-          return Boolean(sheet && sheet["!ref"]);
-        }) ?? workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-        if (!worksheet) {
-          throw new Error("a primeira aba não pôde ser aberta");
-        }
-
-        const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false });
-        if (!rows.length) {
-          throw new Error("a aba selecionada não contém dados");
-        }
-        return rows;
-      } catch (error) {
-        const reason = error instanceof Error ? error.message : String(error);
-        throw new Error(`Não foi possível ler a planilha ${label} "${file.name}": ${reason}`);
-      }
-    };
-
     processingStage = "leitura da planilha de devedores";
-    const debtorsDataRaw = await readExcel(debtorsFile, "de devedores") as any[][];
+    const debtorsDataRaw = await readExcelRows(debtorsFile, "de devedores");
     processingStage = "leitura da base de clientes";
-    const clientsDataRaw = clientsFile ? await readExcel(clientsFile, "de clientes") as any[][] : null;
+    const clientsDataRaw = clientsFile ? await readExcelRows(clientsFile, "de clientes") : null;
 
     processingStage = "identificação das colunas";
     if (debtorsDataRaw.length < 2) {
@@ -487,7 +686,12 @@ export async function processFiles(
     }
 
     // 2. Identify columns
-    const debtorsHeader = debtorsDataRaw[0] as string[];
+    const debtorsHeader = Array.from(
+      debtorsDataRaw[0] ?? [],
+      (value, index) => hasCellValue(value) ? String(value).trim() : `Coluna ${index + 1}`,
+    );
+    const debtorMappings = columnMappings?.debtors;
+    const clientMappings = columnMappings?.clients;
     
     // Debug: Log found columns
     console.log("📋 DEBTORS HEADER:", debtorsHeader);
@@ -497,21 +701,36 @@ export async function processFiles(
     }
     
     // Try multiple patterns for each column
-    const colNameDebtors = findSimilarColumn(debtorsHeader, 'nome') || 
-                          findSimilarColumn(debtorsHeader, 'nome pagador');
-    const colLowerDate = findColumnNameByPatterns(debtorsHeader, [
-      "data de baixa", "data da baixa", "data baixa", "dt de baixa", "dt da baixa", "dt baixa",
-      "data de quitacao", "data da quitacao", "data quitacao", "dt quitacao",
-      "data de liquidacao", "data da liquidacao", "data liquidacao", "dt liquidacao",
-    ]);
-    const colPaymentDate = findColumnNameByPatterns(debtorsHeader, [
-      "data de pagamento", "data do pagamento", "data pagamento",
-      "dt de pagamento", "dt do pagamento", "dt pagamento",
-      "data pgto", "data pagto", "dt pgto", "dt pagto",
-      "data de pgto", "data do pgto", "data de pagto", "data do pagto",
-    ]);
-    const colValue = findSimilarColumn(debtorsHeader, 'valor');
-    const colDueDate = findColumnNameByPatterns(debtorsHeader, ['data de vencimento', 'data vencimento']);
+    const idxNameDebtors = selectedColumnIndex(
+      debtorMappings,
+      "name",
+      defaultColumnSelection(debtorsHeader, "name", false) as number,
+    );
+    const idxLowerDate = selectedColumnIndex(
+      debtorMappings,
+      "lowerDate",
+      defaultColumnSelection(debtorsHeader, "lowerDate", false) as number,
+    );
+    const idxPaymentDate = selectedColumnIndex(
+      debtorMappings,
+      "paymentDate",
+      defaultColumnSelection(debtorsHeader, "paymentDate", false) as number,
+    );
+    const idxValue = selectedColumnIndex(
+      debtorMappings,
+      "value",
+      defaultColumnSelection(debtorsHeader, "value", false) as number,
+    );
+    const idxDueDate = selectedColumnIndex(
+      debtorMappings,
+      "dueDate",
+      defaultColumnSelection(debtorsHeader, "dueDate", false) as number,
+    );
+    const colNameDebtors = idxNameDebtors >= 0 ? debtorsHeader[idxNameDebtors] : null;
+    const colLowerDate = idxLowerDate >= 0 ? debtorsHeader[idxLowerDate] : null;
+    const colPaymentDate = idxPaymentDate >= 0 ? debtorsHeader[idxPaymentDate] : null;
+    const colValue = idxValue >= 0 ? debtorsHeader[idxValue] : null;
+    const colDueDate = idxDueDate >= 0 ? debtorsHeader[idxDueDate] : null;
 
     console.log("🔍 COLUMN MAPPING:", {
       colNameDebtors,
@@ -528,12 +747,6 @@ export async function processFiles(
       };
     }
 
-    const idxNameDebtors = debtorsHeader.indexOf(colNameDebtors);
-    const idxLowerDate = colLowerDate ? debtorsHeader.indexOf(colLowerDate) : -1;
-    const idxPaymentDate = colPaymentDate ? debtorsHeader.indexOf(colPaymentDate) : -1;
-    const idxValue = colValue ? debtorsHeader.indexOf(colValue) : -1;
-    const idxDueDate = colDueDate ? debtorsHeader.indexOf(colDueDate) : -1;
-
     // 3. Index Base data if available
     // Map to store multiple phones per name, so we can prioritize 11-digit numbers
     const phoneMapMultiple = new Map<string, string[]>();
@@ -547,11 +760,23 @@ export async function processFiles(
     let extraColNames: string[] = [];
     let completeClientNameIndex = -1;
     let completeClientPhoneIndices: number[] = [];
-    let completeDebtorPhoneIndices = findPhoneColumnIndices(debtorsHeader);
+    let completeDebtorPhoneIndices = selectedColumnIndices(
+      debtorMappings,
+      "phones",
+      findPhoneColumnIndices(debtorsHeader),
+    );
     let completeClientCpfCnpjIndices: number[] = [];
-    let completeDebtorCpfCnpjIndices: number[] = [];
+    let completeDebtorCpfCnpjIndices = selectedColumnIndices(
+      debtorMappings,
+      "cpfCnpj",
+      findCpfCnpjColumnIndices(debtorsHeader),
+    );
     let completeClientDocumentIndices: number[] = [];
-    let completeDebtorDocumentIndices: number[] = [];
+    let completeDebtorDocumentIndices = selectedColumnIndices(
+      debtorMappings,
+      "documents",
+      findDocumentColumnIndices(debtorsHeader),
+    );
     let completeDebtorRawFieldIndices: number[] = [];
     let completeClientFieldIndices = new Map<string, number>();
     let completeDebtorFieldIndices = new Map<string, number>();
@@ -567,11 +792,23 @@ export async function processFiles(
 
     if (clientsDataRaw && clientsDataRaw.length >= 2) {
       processingStage = "identificação das colunas da base de clientes";
-      clientsHeader = clientsDataRaw[0] as string[];
-      colNameClients = findSimilarColumn(clientsHeader, 'nome');
-      colPhoneClients = findSimilarColumn(clientsHeader, 'telefone') || 
-                             findSimilarColumn(clientsHeader, 'fone') ||
-                             findSimilarColumn(clientsHeader, 'phone');
+      clientsHeader = Array.from(
+        clientsDataRaw[0] ?? [],
+        (value, index) => hasCellValue(value) ? String(value).trim() : `Coluna ${index + 1}`,
+      );
+      const clientNameIndex = selectedColumnIndex(
+        clientMappings,
+        "name",
+        defaultColumnSelection(clientsHeader, "name", false) as number,
+      );
+      const defaultClientPhones = defaultColumnSelection(clientsHeader, "phones", true) as number[];
+      const clientPrimaryPhoneIndex = selectedColumnIndex(
+        clientMappings,
+        "phones",
+        defaultClientPhones[0] ?? -1,
+      );
+      colNameClients = clientNameIndex >= 0 ? clientsHeader[clientNameIndex] : null;
+      colPhoneClients = clientPrimaryPhoneIndex >= 0 ? clientsHeader[clientPrimaryPhoneIndex] : null;
 
       console.log("📞 CLIENTS COLUMN MAPPING:", {
         colNameClients,
@@ -580,14 +817,16 @@ export async function processFiles(
 
       // Find extra columns for sem devedores spreadsheet using group-based matching
       for (const group of SEM_DEVEDORES_GROUPS) {
-        let foundCol: string | null = null;
-        for (const pattern of group.patterns) {
-          foundCol = findSimilarColumn(clientsHeader, pattern);
-          if (foundCol) break;
-        }
-        if (foundCol) {
+        const key = extraFieldMappingKey(group.label);
+        const fallback = defaultColumnSelection(clientsHeader, key, group.label === "Telefone");
+        const selectedIndex = selectedColumnIndex(
+          clientMappings,
+          key,
+          Array.isArray(fallback) ? fallback[0] ?? -1 : fallback,
+        );
+        if (selectedIndex >= 0) {
           extraColNames.push(group.label);
-          extraColIndices.push(clientsHeader.indexOf(foundCol));
+          extraColIndices.push(selectedIndex);
         } else {
           // Column not found — include it as empty
           extraColNames.push(group.label);
@@ -597,34 +836,64 @@ export async function processFiles(
       console.log("📊 EXTRA COLUMNS FOR SEM DEVEDORES:", extraColNames);
 
       processingStage = "mapeamento dos campos completos";
-      completeClientNameIndex = findColumnIndexByPatterns(clientsHeader, COMPLETE_EXPORT_FIELDS[0].patterns);
-      completeClientPhoneIndices = findPhoneColumnIndices(clientsHeader);
-      completeClientCpfCnpjIndices = findCpfCnpjColumnIndices(clientsHeader);
-      completeDebtorCpfCnpjIndices = findCpfCnpjColumnIndices(debtorsHeader);
-      completeClientDocumentIndices = findDocumentColumnIndices(clientsHeader);
-      completeDebtorDocumentIndices = findDocumentColumnIndices(debtorsHeader);
+      completeClientNameIndex = selectedColumnIndex(
+        clientMappings,
+        "name",
+        findColumnIndexByPatterns(clientsHeader, COMPLETE_EXPORT_FIELDS[0].patterns),
+      );
+      completeClientPhoneIndices = selectedColumnIndices(
+        clientMappings,
+        "phones",
+        findPhoneColumnIndices(clientsHeader),
+      );
+      completeClientCpfCnpjIndices = selectedColumnIndices(
+        clientMappings,
+        "cpfCnpj",
+        findCpfCnpjColumnIndices(clientsHeader),
+      );
+      completeClientDocumentIndices = selectedColumnIndices(
+        clientMappings,
+        "documents",
+        findDocumentColumnIndices(clientsHeader),
+      );
       completeClientFieldIndices = new Map(
         COMPLETE_EXPORT_FIELDS.slice(1).map(field => [
           field.label,
-          findColumnIndexByPatterns(clientsHeader, field.patterns),
+          selectedColumnIndex(
+            clientMappings,
+            exportFieldMappingKey(field.label),
+            findColumnIndexByPatterns(clientsHeader, field.patterns),
+          ),
         ])
       );
       completeDebtorFieldIndices = new Map(
         COMPLETE_EXPORT_FIELDS.slice(1).map(field => [
           field.label,
-          findColumnIndexByPatterns(debtorsHeader, field.patterns),
+          selectedColumnIndex(
+            debtorMappings,
+            exportFieldMappingKey(field.label),
+            findColumnIndexByPatterns(debtorsHeader, field.patterns),
+          ),
         ])
       );
       completeExtraFieldIndices = new Map(
         COMPLETE_EXTRA_GROUPS.map(group => [
           group.label,
-          findColumnIndexByPatterns(clientsHeader, group.patterns),
+          selectedColumnIndex(
+            clientMappings,
+            extraFieldMappingKey(group.label),
+            findColumnIndexByPatterns(clientsHeader, group.patterns),
+          ),
         ])
       );
       completeDebtorExtraFieldIndices = new Map(
         COMPLETE_EXTRA_GROUPS.map(group => [
           group.label,
-          findColumnIndexByPatterns(debtorsHeader, group.patterns),
+          selectedColumnIndex(
+            debtorMappings,
+            extraFieldMappingKey(group.label),
+            findColumnIndexByPatterns(debtorsHeader, group.patterns),
+          ),
         ])
       );
       completeDebtorRawFieldIndices = findUnmappedDataColumnIndices(

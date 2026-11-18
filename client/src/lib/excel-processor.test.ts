@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { File } from "node:buffer";
 import test from "node:test";
 import * as XLSX from "xlsx";
-import { processFiles } from "./excel-processor";
+import { inspectFiles, processFiles } from "./excel-processor";
 
 function workbookFile(rows: unknown[][], name: string): File {
   const workbook = XLSX.utils.book_new();
@@ -135,4 +135,45 @@ test("a extração isolada também conserva telefone, WhatsApp e fax em colunas"
   assert.ok(rows[1].includes("11 91111-2222"));
   assert.ok(rows[1].includes("11 3333-8888"));
   assert.ok(!rows.flat().includes(999), "the paid installment should be filtered out");
+});
+
+test("permite revisar colunas e usa os vínculos confirmados na exportação", async () => {
+  const clientsFile = workbookFile([
+    ["Pessoa cadastrada", "Celular alternativo", "Contato principal", "Email válido"],
+    ["Eva Pereira", "11 98888-1000", "11 3333-1000", "eva@example.com"],
+  ], "clientes-ambiguous.xlsx");
+  const debtorsFile = workbookFile([
+    ["Pagador", "Vencimento do título", "Pago em", "Baixado em", "Valor base", "Saldo correto", "Documento da cobrança"],
+    ["Eva Pereira", "2026-09-10", "", "", 5, 45, "DOC-51"],
+  ], "devedores-ambiguous.xlsx");
+
+  const inspection = await inspectFiles(clientsFile, debtorsFile);
+  assert.equal(inspection.success, true, inspection.message);
+  assert.ok(inspection.review?.clients?.headers.includes("Pessoa cadastrada"));
+  assert.ok(inspection.review?.debtors.headers.includes("Pagador"));
+
+  const mappings = inspection.mappings!;
+  mappings.clients!.name = 0;
+  mappings.clients!.phones = [1, 2];
+  mappings.clients!.email = 3;
+  mappings.debtors.name = 0;
+  mappings.debtors.dueDate = 1;
+  mappings.debtors.value = 5;
+  mappings.debtors.paymentDate = -1;
+  mappings.debtors.lowerDate = -1;
+  mappings.debtors.documents = [6];
+
+  const result = await processFiles(clientsFile, debtorsFile, mappings);
+  assert.equal(result.success, true, result.message);
+
+  const rows = readRows(result.devedoresCompletaData);
+  const headers = rows[0].map(String);
+  const debtor = rows[1];
+  assert.equal(debtor[headers.indexOf("Nome do Cliente")], "Eva Pereira");
+  assert.equal(debtor[headers.indexOf("E-mail")], "eva@example.com");
+  assert.equal(debtor[headers.indexOf("Valor Total da Dívida")], 45);
+  assert.equal(debtor[headers.indexOf("Vencimento 1")], "10/09/2026");
+  assert.ok(debtor.includes("11 98888-1000"));
+  assert.ok(debtor.includes("11 3333-1000"));
+  assert.equal(debtor[headers.indexOf("Nota Fiscal")], "DOC-51");
 });
