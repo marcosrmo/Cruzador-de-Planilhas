@@ -49,7 +49,7 @@ function makeDebtorsFile(): File {
     ["Ana Silva", "", "11 91111-2222", "11 3333-8888", "2026-05-10", "R$ 120,50", "", "", "NF 000123", "3456789012", 1, 2, "CX-9"],
     ["Ana Silva", "", "", "", "2026-06-10", 80, "", "", "NF-77", "1234567", 2, 2, "CX-9"],
     ["Ana Silva", "", "", "11 8888-7777", "2026-07-10", 999, "2026-07-12", "", "NF 999", "9999999999", 3, 3, "PAGO"],
-    ["Bia Souza", "21 2222-9999", "", "21 3333-8888", "2026-04-10", 50, "", "2026-04-12", "NF 55", "55555555", 1, 1, "BAIXADO"],
+    ["Bia Souza", "21 2222-9999", "", "21 3333-8888", "2026-04-10", 50, "2026-04-11", "2026-04-12", "NF 55", "55555555", 1, 1, "BAIXADO"],
   ], "devedores.xlsx");
 }
 
@@ -59,7 +59,14 @@ test("separa débitos em aberto, organiza telefones e mantém campos extras", as
   assert.equal(result.stats?.total, 2, "paid rows should not count as open debt");
   assert.equal(result.stats?.devedoresCompletos, 1);
   assert.equal(result.stats?.semDevedoresCompleta, 2);
+  assert.equal(result.stats?.semDevedores, 2);
   assert.equal(result.stats?.found, 5, "the phone count should include all unique columns for each debtor");
+
+  const simpleDebtorRows = readRows(result.data);
+  assert.ok(!simpleDebtorRows.slice(1).some(row => row[0] === "Bia Souza"), "paid names must not appear in the simple debtor sheet");
+  const detailedDebtorRows = readRows(result.detailedData);
+  assert.ok(!detailedDebtorRows.slice(1).some(row => row[0] === "Bia Souza"), "paid names must not appear in the detailed debtor sheet");
+  assert.ok(!detailedDebtorRows.flat().includes(50), "paid values must not appear in the detailed debtor sheet");
 
   const debtorRows = readRows(result.devedoresCompletaData);
   const debtorHeaders = debtorRows[0].map(String);
@@ -99,6 +106,9 @@ test("separa débitos em aberto, organiza telefones e mantém campos extras", as
   assert.ok(bia.includes("21 3333-8888"), "phones from settled debtor rows should be added to the no-debt export");
   assert.equal(bia[noDebtHeaders.indexOf("Valor")], "");
   assert.equal(bia[noDebtHeaders.indexOf("Vencimento")], "");
+
+  const noDebtSimpleRows = readRows(result.semDevedoresData);
+  assert.ok(noDebtSimpleRows.slice(1).some(row => row[0] === "Bia Souza"), "paid names must appear in the simple no-debt sheet");
 });
 
 test("mantém como aberto um vencimento com marcador de pagamento vazio", async () => {
@@ -141,10 +151,12 @@ test("permite revisar colunas e usa os vínculos confirmados na exportação", a
   const clientsFile = workbookFile([
     ["Pessoa cadastrada", "Celular alternativo", "Contato principal", "Email válido"],
     ["Eva Pereira", "11 98888-1000", "11 3333-1000", "eva@example.com"],
+    ["Fábio Santos", "11 97777-1000", "11 3222-1000", "fabio@example.com"],
   ], "clientes-ambiguous.xlsx");
   const debtorsFile = workbookFile([
     ["Pagador", "Vencimento do título", "Pago em", "Baixado em", "Valor base", "Saldo correto", "Documento da cobrança"],
     ["Eva Pereira", "2026-09-10", "", "", 5, 45, "DOC-51"],
+    ["Fábio Santos", "2026-09-10", "2026-09-11", "2026-09-12", 5, 0, "DOC-52"],
   ], "devedores-ambiguous.xlsx");
 
   const inspection = await inspectFiles(clientsFile, debtorsFile);
@@ -153,14 +165,16 @@ test("permite revisar colunas e usa os vínculos confirmados na exportação", a
   assert.ok(inspection.review?.debtors.headers.includes("Pagador"));
 
   const mappings = inspection.mappings!;
+  assert.equal(mappings.debtors.paymentDate, 2, "the 'Pago em' column should be recognized automatically");
+  assert.equal(mappings.debtors.lowerDate, 3, "the 'Baixado em' column should be recognized automatically");
+  mappings.debtors.paymentDate = -1;
+  mappings.debtors.lowerDate = -1;
   mappings.clients!.name = 0;
   mappings.clients!.phones = [1, 2];
   mappings.clients!.email = 3;
   mappings.debtors.name = 0;
   mappings.debtors.dueDate = 1;
   mappings.debtors.value = 5;
-  mappings.debtors.paymentDate = -1;
-  mappings.debtors.lowerDate = -1;
   mappings.debtors.documents = [6];
 
   const result = await processFiles(clientsFile, debtorsFile, mappings);
@@ -169,6 +183,7 @@ test("permite revisar colunas e usa os vínculos confirmados na exportação", a
   const rows = readRows(result.devedoresCompletaData);
   const headers = rows[0].map(String);
   const debtor = rows[1];
+  assert.equal(rows.length, 2, "only the person with unpaid debt should remain in the complete debtor sheet");
   assert.equal(debtor[headers.indexOf("Nome do Cliente")], "Eva Pereira");
   assert.equal(debtor[headers.indexOf("E-mail")], "eva@example.com");
   assert.equal(debtor[headers.indexOf("Valor Total da Dívida")], 45);
@@ -176,4 +191,6 @@ test("permite revisar colunas e usa os vínculos confirmados na exportação", a
   assert.ok(debtor.includes("11 98888-1000"));
   assert.ok(debtor.includes("11 3333-1000"));
   assert.equal(debtor[headers.indexOf("Nota Fiscal")], "DOC-51");
+  const settledRows = readRows(result.semDevedoresCompletaData);
+  assert.ok(settledRows.some(row => row[0] === "Fábio Santos"), "the paid and settled name should be moved to the no-debt sheet");
 });

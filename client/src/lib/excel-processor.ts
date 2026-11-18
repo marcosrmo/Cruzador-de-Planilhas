@@ -227,8 +227,11 @@ const COMPLETE_EXTRA_GROUPS = SEM_DEVEDORES_GROUPS.filter(
 
 const LOWER_DATE_PATTERNS = [
   "data de baixa", "data da baixa", "data baixa", "dt de baixa", "dt da baixa", "dt baixa",
+  "baixa em", "baixado em", "baixada em",
   "data de quitacao", "data da quitacao", "data quitacao", "dt quitacao",
+  "quitado em", "quitada em",
   "data de liquidacao", "data da liquidacao", "data liquidacao", "dt liquidacao",
+  "liquidado em", "liquidada em",
 ];
 
 const PAYMENT_DATE_PATTERNS = [
@@ -236,6 +239,7 @@ const PAYMENT_DATE_PATTERNS = [
   "dt de pagamento", "dt do pagamento", "dt pagamento",
   "data pgto", "data pagto", "dt pgto", "dt pagto",
   "data de pgto", "data do pgto", "data de pagto", "data do pagto",
+  "pagamento em", "pago em", "paga em",
 ];
 
 const DUE_DATE_PATTERNS = ["data de vencimento", "data vencimento", "vencimento"];
@@ -393,6 +397,21 @@ function findColumnIndexByPatterns(headers: string[], patterns: string[]): numbe
   }
 
   return -1;
+}
+
+function findColumnIndicesByPatterns(headers: string[], patterns: string[]): number[] {
+  const normalizedPatterns = patterns.map(pattern => normalizeText(pattern));
+  return headers.reduce<number[]>((indices, header, index) => {
+    const normalizedHeader = normalizeText(header);
+    if (!normalizedHeader) return indices;
+    if (normalizedPatterns.some(pattern => (
+      pattern.length >= 3
+      && (normalizedHeader === pattern || normalizedHeader.includes(pattern))
+    ))) {
+      indices.push(index);
+    }
+    return indices;
+  }, []);
 }
 
 function findPhoneColumnIndices(headers: string[]): number[] {
@@ -726,6 +745,14 @@ export async function processFiles(
       "dueDate",
       defaultColumnSelection(debtorsHeader, "dueDate", false) as number,
     );
+    const autoSettlementDateIndices = findColumnIndicesByPatterns(debtorsHeader, [
+      ...LOWER_DATE_PATTERNS,
+      ...PAYMENT_DATE_PATTERNS,
+    ]);
+    const settlementDateIndices = Array.from(new Set([
+      ...autoSettlementDateIndices,
+      ...[idxLowerDate, idxPaymentDate].filter(index => index >= 0 && index !== idxDueDate),
+    ]));
     const colNameDebtors = idxNameDebtors >= 0 ? debtorsHeader[idxNameDebtors] : null;
     const colLowerDate = idxLowerDate >= 0 ? debtorsHeader[idxLowerDate] : null;
     const colPaymentDate = idxPaymentDate >= 0 ? debtorsHeader[idxPaymentDate] : null;
@@ -1029,10 +1056,9 @@ export async function processFiles(
       const name = row[idxNameDebtors];
       
       // Filtro de Datas: Ignorar se houver Data de Baixa ou Data de Pagamento preenchida
-      const hasLowerDate = idxLowerDate !== -1 && hasSettlementDate(row[idxLowerDate]);
-      const hasPaymentDate = idxPaymentDate !== -1 && hasSettlementDate(row[idxPaymentDate]);
+      const hasSettlementDateValue = settlementDateIndices.some(index => hasSettlementDate(row[index]));
 
-      if (hasLowerDate || hasPaymentDate) {
+      if (hasSettlementDateValue) {
         if (hasCellValue(name)) {
           const normalizedName = normalizeText(name);
           settledPhonesByName.set(
